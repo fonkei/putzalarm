@@ -320,7 +320,7 @@ function frame(){
 }
 // Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
 if(location.search.includes('render')){
-  window.PUTZ={renderer,scene,camera,hero,mons,costume,waveCape,headG,ground,glowDisc,monster,
+  window.PUTZ={renderer,scene,camera,hero,mons,arms,mat,costume,waveCape,headG,ground,glowDisc,monster,
     setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);}};
   document.getElementById('loading').remove();return;
 }

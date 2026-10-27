@@ -46,6 +46,55 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
       res[`hero_${pose}_${i}`] = grab(cam, 450, 600);
     });
 
+    // Weitere Bewegungen, Bild für Bild direkt gestellt. Pro Arm: sy = nach vorn schwenken,
+    // uz = Oberarm heben, ez = Unterarm nach innen beugen (alles gespiegelt für links/rechts).
+    const setArm = (a, { sy = 0, uz = 0, ez = 0 }) => {
+      a.shoulder.rotation.y = -a.side * sy; a.upper.rotation.z = a.side * uz; a.elbow.rotation.z = a.side * ez;
+    };
+    // Kleine Zahnbürste für die Putz-Bewegung, steckt in der rechten Faust
+    const mini = new T.Group();
+    const mh = new T.Mesh(new T.CapsuleGeometry(0.03, 0.42, 6, 12), P.mat.boot); mh.position.y = 0.2; mini.add(mh);
+    const mhead = new T.Mesh(new T.CapsuleGeometry(0.045, 0.08, 6, 12), P.mat.head); mhead.position.set(0, 0.46, 0.02); mini.add(mhead);
+    for (let k = 0; k < 3; k++) { const br = new T.Mesh(new T.CapsuleGeometry(0.018, 0.05, 4, 8), P.mat.bristleA); br.rotation.x = Math.PI / 2; br.position.set(0, 0.43 + k * 0.035, 0.08); mini.add(br); }
+    mini.traverse(o => { if (o.isMesh) o.castShadow = true; });
+        const R = P.arms.find(a => a.side > 0), L = P.arms.find(a => a.side < 0);
+    const moves = {
+      // Tanzen: ein Arm hoch, einer runter, Hüftschwung und kleine Hüpfer
+      dance: [
+        { L: { uz: -0.9, ez: -1.2 }, R: { uz: 1.1, ez: -0.4 }, sway: 0.1, hop: 0.06, turn: 0.15 },
+        { L: { uz: -0.4, ez: -0.6 }, R: { uz: 0.4, ez: 0.6 }, sway: 0, hop: 0.14, turn: 0 },
+        { L: { uz: 1.1, ez: -0.4 }, R: { uz: -0.9, ez: -1.2 }, sway: -0.1, hop: 0.06, turn: -0.15 },
+        { L: { uz: 0.4, ez: 0.6 }, R: { uz: -0.4, ez: -0.6 }, sway: 0, hop: 0.14, turn: 0 },
+      ],
+      // Putzen: rechte Faust mit Mini-Bürste vor dem Mund, hin und her
+      brush: [-0.14, 0, 0.14, 0].map(d => ({ L: { uz: -1.3, ez: -1.45 }, R: { sy: 1.35 + d, uz: 0.55, ez: -0.7 }, brush: true, turn: 0.1 })),
+      // Boxen: Deckung, rechts schlagen, Deckung, links schlagen
+      box: [
+        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: 0 },
+        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.5, uz: 0.15, ez: -1.45 }, turn: 0.25 },
+        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: 0, hop: 0.05 },
+        { L: { sy: 1.5, uz: 0.15, ez: -1.45 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: -0.25 },
+      ],
+    };
+    for (const [name, list] of Object.entries(moves)) list.forEach((f, i) => {
+      setArm(L, f.L); setArm(R, f.R);
+      hero.position.y = f.hop || 0; hero.rotation.z = f.sway || 0; hero.rotation.y = -0.3 + (f.turn || 0);
+      hero.remove(mini);
+      if (f.brush) {
+        // Bürstenkopf am Mund, Griff durch die Faust
+        hero.updateMatrixWorld(true);
+        const fist = hero.worldToLocal(R.elbow.localToWorld(new T.Vector3(0, 0.47, 0)));
+        const dir = new T.Vector3(0.02, 3.0, 0.24).sub(fist).normalize();
+        mini.position.copy(fist).addScaledVector(dir, -0.12);
+        mini.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), dir);
+        hero.add(mini);
+      }
+      P.waveCape(i * 0.8); P.headG.rotation.z = -(f.sway || 0) * 0.6;
+      res[`hero_${name}_${i}`] = grab(cam, 450, 600);
+    });
+    hero.remove(mini);
+    hero.position.y = 0; hero.rotation.z = 0;
+
     // Monster: genau das 120er-Raster der alten Zeichnung (−0,6 … 0,6), zwei Bilder fürs Zappeln
     hero.visible = false;
     const ortho = new T.OrthographicCamera(-0.6, 0.6, 0.6, -0.6, 0.1, 20);

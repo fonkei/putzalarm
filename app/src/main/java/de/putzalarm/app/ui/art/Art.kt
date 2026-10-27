@@ -4,6 +4,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import kotlin.random.Random
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -32,19 +39,33 @@ private fun round(w: Float) = Stroke(width = w, cap = StrokeCap.Round, join = St
 
 /**
  * Maskottchen „Super Bürsti“: eine schlanke Zahnbürste als Superheld (Kostüm Goldglanz), als
- * fertig gerenderte 3D-Bilder. [pose] wählt die Bewegung, darunter liegt ein weicher Bodenschatten.
+ * fertig gerenderte 3D-Bilder. Mit [pose] macht er immer dieselbe Bewegung, ohne wechselt er alle paar
+ * Sekunden zufällig zwischen Winken, Tanzen, Putzen, Boxen, Muskeln zeigen und Jubeln.
  */
 @Composable
-fun Mascot(modifier: Modifier = Modifier, pose: HeroPose = HeroPose.WAVE) {
-    val t = rememberInfiniteTransition(label = "mascot")
-    val n = pose.frames
-    val clock by t.animateFloat(
-        0f, n.toFloat(),
-        infiniteRepeatable(tween(n * pose.frameMs, easing = LinearEasing), RepeatMode.Restart),
-        label = "frame",
-    )
+fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null) {
+    var current by remember { mutableStateOf(pose ?: HeroPose.WAVE) }
+    var frame by remember { mutableIntStateOf(0) }
+    LaunchedEffect(pose) {
+        current = pose ?: HeroPose.WAVE
+        var start = 0L
+        var next = 3200L
+        while (true) {
+            withFrameMillis { now ->
+                if (start == 0L) start = now
+                var elapsed = now - start
+                if (pose == null && elapsed > next) {
+                    current = HeroPose.Show.filter { it != current }.random()
+                    start = now
+                    elapsed = 0L
+                    next = Random.nextLong(2600L, 4200L)
+                }
+                frame = ((elapsed / current.frameMs) % current.frames).toInt()
+            }
+        }
+    }
     Canvas(modifier.aspectRatio(3f / 4f)) {
-        val img = Sprites.hero(pose, clock.toInt().coerceIn(0, n - 1))
+        val img = Sprites.hero(current, frame)
         drawOval(Color.Black, Offset(size.width * 0.3f, size.height * 0.905f), Size(size.width * 0.42f, size.height * 0.05f), alpha = 0.18f)
         drawImage(img, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), filterQuality = FilterQuality.Medium)
     }

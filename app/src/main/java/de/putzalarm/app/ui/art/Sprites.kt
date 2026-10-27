@@ -9,7 +9,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 
 /** Posen von Super Bürsti, je mit ihren Einzelbildern (aus tools/render_sprites.js). */
 enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
-    FLEX("flex", 2, 420), WAVE("wave", 4, 120), JUBEL("jubel", 4, 110)
+    FLEX("flex", 2, 420), WAVE("wave", 4, 120), JUBEL("jubel", 4, 110),
+    DANCE("dance", 4, 190), BRUSH("brush", 4, 110), BOX("box", 4, 200);
+
+    companion object {
+        /** Bewegungen, zwischen denen Super Bürsti im Show-Modus wechselt. */
+        val Show = listOf(WAVE, DANCE, BRUSH, BOX, FLEX, JUBEL)
+    }
 }
 
 /**

@@ -315,7 +315,7 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
         if (game.phase != Phase.COUNTDOWN) {
             Mascot(
                 Modifier.align(Alignment.BottomEnd).fillMaxHeight(0.36f).offset(x = 3.u, y = 2.u),
-                pose = if (cheer || game.phase == Phase.DONE) HeroPose.JUBEL else HeroPose.FLEX,
+                pose = if (cheer || game.phase == Phase.DONE) HeroPose.JUBEL else HeroPose.BRUSH,
             )
         }
         if (game.phase == Phase.RUN) {

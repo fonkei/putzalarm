@@ -46,7 +46,7 @@ fun HomeScreen(
     onSwitch: () -> Unit,
     greet: (String) -> Unit,
 ) {
-    LaunchedEffect(child.id) { greet("Hallo ${child.name}! Ich bin Super Bürsti. Die Monster warten schon.") }
+    LaunchedEffect(child.id) { greet(Greetings.next(child)) }
     BackHandler(onBack = onSwitch)
     val evening = LocalTime.now().hour >= 15
     DottedBackground {
@@ -100,6 +100,47 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** Begrüßungen von Super Bürsti. Er sagt jedes Mal etwas anderes und wiederholt die letzten Sprüche nicht. */
+private object Greetings {
+    private val recent = ArrayDeque<String>()
+
+    private fun all(c: Child): List<String> {
+        val n = c.name
+        val hour = LocalTime.now().hour
+        return buildList {
+            add("Hallo $n! Ich bin Super Bürsti. Die Monster warten schon.")
+            add("Hey $n! Schön, dass du da bist. Bereit für die Monsterjagd?")
+            add("Hallo $n! Ich höre schon die Zuckermonster kichern. Die verjagen wir!")
+            add("Super Bürsti meldet sich zum Dienst! Los geht's, $n!")
+            add("Da bist du ja, $n! Meine Borsten kribbeln schon vor Aufregung.")
+            add("$n, weißt du was? Die Monster zittern schon vor Angst vor dir!")
+            add("Achtung, Achtung! $n ist da. Alle Monster in Deckung!")
+            add("Ich habe extra meine Muskeln trainiert. Zeig mir deine Putzkraft, $n!")
+            add("Hallo $n! Bist du bereit? Ich bin bereit!")
+            add("Juhu, $n ist da! Heute verjagen wir ganz viele Monster, oder?")
+            add("Psst, $n! Hinter deinen Backenzähnen verstecken sich Monster. Wir finden sie alle!")
+            add("Hallo Putz-Held $n! Schnapp dir deine Bürste, und los!")
+            add("Tschakka! $n und Super Bürsti, das stärkste Team der Welt!")
+            add("Hallo $n! Ich habe schon Tanzschritte geübt. Und du die Putzbewegung?")
+            add("Wer hat die saubersten Zähne der Stadt? Bald du, $n!")
+            when {
+                hour < 11 -> add("Guten Morgen, $n! Nach dem Frühstück kommen die Monster. Wir sind schneller!")
+                hour >= 17 -> add("Guten Abend, $n! Vor dem Schlafen jagen wir noch schnell die Monster weg.")
+            }
+            val s = c.streak
+            if (s >= 2) add("Wow, $n! Schon $s Tage hintereinander geputzt. Du bist ein echter Held!")
+            if (c.stickers.isNotEmpty()) add("Hallo $n! Schon ${c.stickers.size} Monster im Album. Wer kommt heute dazu?")
+        }
+    }
+
+    fun next(c: Child): String {
+        val pick = all(c).filter { it !in recent }.ifEmpty { all(c) }.random()
+        recent.addLast(pick)
+        while (recent.size > 6) recent.removeFirst()
+        return pick
     }
 }
 
