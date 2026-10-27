@@ -50,6 +50,15 @@ data class Child(
     private val days: Set<LocalDate>
         get() = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
 
+    /** Heute schon geputzt? Morgens = vor 15 Uhr, abends = ab 15 Uhr (wie Sonne und Mond auf dem Start). */
+    fun brushedToday(evening: Boolean): Boolean {
+        val today = LocalDate.now()
+        return sessions.any {
+            val t = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())
+            t.toLocalDate() == today && (t.hour >= 15) == evening
+        }
+    }
+
     /** Tage in Folge geputzt; wer heute noch nicht dran war, verliert die Serie nicht. */
     val streak: Int
         get() {

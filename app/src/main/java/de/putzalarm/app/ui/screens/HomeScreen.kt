@@ -16,6 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.scale
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,9 +63,9 @@ fun HomeScreen(
                 ChildAvatar(child, photoDir, 6.u)
             }
         }
-        Row(Modifier.align(Alignment.TopEnd).padding(3.5.u), horizontalArrangement = Arrangement.spacedBy(1.4.u)) {
-            DayChip(Icon.SUN, !evening)
-            DayChip(Icon.MOON, evening)
+        Row(Modifier.align(Alignment.TopEnd).padding(3.5.u), horizontalArrangement = Arrangement.spacedBy(2.4.u)) {
+            DayChip(Icon.SUN, now = !evening, done = child.brushedToday(evening = false))
+            DayChip(Icon.MOON, now = evening, done = child.brushedToday(evening = true))
         }
         Column(
             Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd).padding(end = 5.u),
@@ -170,9 +177,28 @@ private object Greetings {
 
 }
 
+/**
+ * Sonne = Morgenputzen, Mond = Abendputzen. Was gerade dran ist, leuchtet gelb und pulsiert,
+ * Erledigtes wird grün und bekommt einen dicken Haken.
+ */
 @Composable
-private fun DayChip(icon: Icon, selected: Boolean) {
-    Box(Modifier.comic(if (selected) M.Ink else Color.White, 3.u, 0.45.u).padding(horizontal = 1.8.u, vertical = 0.6.u)) {
-        IconArt(icon, Modifier.size(3.u), color = if (selected) M.Yellow else M.Ink)
+private fun DayChip(icon: Icon, now: Boolean, done: Boolean) {
+    val pulse = if (now && !done) {
+        val t = rememberInfiniteTransition(label = "chip")
+        t.animateFloat(1f, 1.12f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulse").value
+    } else 1f
+    val bg = when { done -> M.Mint; now -> M.Yellow; else -> Color.White }
+    Box(Modifier.scale(pulse)) {
+        Box(
+            Modifier.size(10.u).padding(bottom = 0.6.u).comic(bg, 3.u, 0.5.u, 0.6.u).padding(1.6.u),
+            contentAlignment = Alignment.Center,
+        ) {
+            IconArt(icon, Modifier.fillMaxSize(), color = if (now || done) M.Ink else M.Ink.copy(alpha = 0.35f))
+        }
+        if (done) {
+            Box(
+                Modifier.align(Alignment.BottomEnd).offset(x = 1.2.u, y = 0.8.u).size(5.u).comic(M.Pink, 5.u, 0.45.u).padding(0.9.u),
+            ) { IconArt(Icon.CHECK, Modifier.fillMaxSize(), color = Color.White) }
+        }
     }
 }
