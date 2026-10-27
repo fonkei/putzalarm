@@ -1,0 +1,39 @@
+package de.putzalarm.app
+
+import android.os.Bundle
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import de.putzalarm.app.audio.Voice
+import de.putzalarm.app.data.ProfileStore
+import de.putzalarm.app.ui.theme.PutzalarmTheme
+
+class MainActivity : ComponentActivity() {
+    private lateinit var voice: Voice
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        // Vollbild wie ein Spiel, und der Bildschirm bleibt beim Putzen an.
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        val store = ProfileStore(applicationContext)
+        voice = Voice(this)
+        setContent {
+            PutzalarmTheme { App(store, voice) }
+        }
+    }
+
+    override fun onDestroy() {
+        voice.shutdown()
+        super.onDestroy()
+    }
+}
