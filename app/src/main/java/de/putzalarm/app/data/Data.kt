@@ -74,7 +74,34 @@ data class Child(
 }
 
 /** Hält die Kinderprofile als JSON-Datei im App-Speicher. Nichts verlässt das Gerät. */
+/** Wie leicht Schrubben erkannt wird. [on]: Bewegung, ab der es losgeht; [off]: darunter hört es auf. */
+enum class Sensitivity(val label: String, val on: Float, val off: Float) {
+    EASY("Locker", 0.12f, 0.05f), NORMAL("Normal", 0.2f, 0.09f), STRICT("Streng", 0.32f, 0.15f)
+}
+
 class ProfileStore(context: Context) {
+    private val prefs = context.getSharedPreferences("einstellungen", Context.MODE_PRIVATE)
+
+    /** Empfindlichkeit der Putzerkennung (Elternbereich). */
+    var sensitivity by mutableStateOf(
+        Sensitivity.entries.getOrElse(prefs.getInt("empfindlichkeit", Sensitivity.NORMAL.ordinal)) { Sensitivity.NORMAL },
+    )
+        private set
+
+    /** Zeigt beim Putzen eine kleine Messanzeige, um die Erkennung zu prüfen. */
+    var showMeter by mutableStateOf(prefs.getBoolean("messanzeige", false))
+        private set
+
+    fun updateSensitivity(s: Sensitivity) {
+        sensitivity = s
+        prefs.edit().putInt("empfindlichkeit", s.ordinal).apply()
+    }
+
+    fun updateShowMeter(on: Boolean) {
+        showMeter = on
+        prefs.edit().putBoolean("messanzeige", on).apply()
+    }
+
     private val file = File(context.filesDir, "kinder.json")
     val photoDir = File(context.filesDir, "fotos").apply { mkdirs() }
 

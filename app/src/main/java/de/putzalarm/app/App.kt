@@ -68,6 +68,10 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 onAdd = { screen = if (s.editMode) Screen.Edit(null) else Screen.Gate(Screen.Edit(null)) },
                 onParents = { screen = Screen.Gate(Screen.Picker(editMode = true)) },
                 onDoneEditing = { screen = Screen.Picker() },
+                sensitivity = store.sensitivity,
+                onSensitivity = store::updateSensitivity,
+                showMeter = store.showMeter,
+                onShowMeter = store::updateShowMeter,
             )
             is Screen.Gate -> ParentGateScreen(onPass = { screen = s.then }, onCancel = { screen = Screen.Picker() })
             is Screen.Edit -> EditChildScreen(
@@ -91,6 +95,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 BrushScreen(
                     child = c,
                     cameraAllowed = s.camera,
+                    sensitivity = store.sensitivity,
+                    showMeter = store.showMeter,
                     voice = voice,
                     sfx = sfx,
                     onFinished = { r ->

@@ -63,21 +63,26 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
         val upW = if (rot % 180 == 0) image.width else image.height
         val upH = if (rot % 180 == 0) image.height else image.width
         val now = System.currentTimeMillis()
-        val hasFace = now - lastFaceMs < 1200
+        // Beim Putzen verdecken Hand und Bürste oft den Mund, dann verliert ML Kit das Gesicht kurz.
+        // Deshalb gilt das zuletzt gesehene Gesicht noch 3 Sekunden weiter.
+        val hasFace = lastFaceMs > 0 && now - lastFaceMs < 3000
 
         // Ohne Gesicht gilt keine Bewegung als Putzen.
         if (hasFace) {
             // Mundbereich (Bürste, Hand, Kinn) und zum Vergleich die Stirn/Augenpartie.
             // Bewegt sich der ganze Kopf oder ändert sich das Licht, ändern sich beide gleich stark.
-            val rw = (fw * 1.1f).coerceIn(0.12f, 0.7f)
-            val rh = (fh * 0.6f).coerceIn(0.1f, 0.6f)
+            // Breit genug, dass auch die Hand mit dem Bürstengriff neben dem Mund drin ist.
+            val rw = (fw * 1.6f).coerceIn(0.15f, 0.8f)
+            val rh = (fh * 0.7f).coerceIn(0.1f, 0.6f)
             val mouth = measureMotion(image, rot, upW, upH, mx - rw / 2, my - rh * 0.4f, rw, rh, mouthGrid)
             val refW = (fw * 0.7f).coerceIn(0.08f, 0.5f)
             val refH = (fh * 0.3f).coerceIn(0.05f, 0.3f)
             val ref = measureMotion(image, rot, upW, upH, mx - refW / 2, my - fh * 0.75f, refW, refH, refGrid)
-            val local = mouth - ref * 0.9f
-            val level = ((local - 5f) / 9f).coerceIn(0f, 1f)
-            motion = motion * 0.6f + level * 0.4f
+            // Kräftiges Schrubben wackelt auch den Kopf mit, darum wird die Stirn nur zur Hälfte abgezogen.
+            val local = mouth - ref * 0.5f
+            val level = ((local - 2.5f) / 8f).coerceIn(0f, 1f)
+            // Schnell rauf, etwas langsamer runter, damit kurze Pausen im Schrubb-Rhythmus nicht abbrechen.
+            motion = if (level > motion) motion * 0.5f + level * 0.5f else motion * 0.75f + level * 0.25f
         } else {
             mouthGrid.reset()
             refGrid.reset()

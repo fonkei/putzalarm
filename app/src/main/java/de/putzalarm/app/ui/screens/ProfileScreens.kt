@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
+import de.putzalarm.app.data.Sensitivity
 import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Mascot
 import de.putzalarm.app.ui.theme.ComicButton
@@ -54,6 +55,10 @@ fun ProfilePickerScreen(
     onAdd: () -> Unit,
     onParents: () -> Unit,
     onDoneEditing: () -> Unit,
+    sensitivity: Sensitivity = Sensitivity.NORMAL,
+    onSensitivity: (Sensitivity) -> Unit = {},
+    showMeter: Boolean = false,
+    onShowMeter: (Boolean) -> Unit = {},
 ) {
     DottedBackground {
         Row(Modifier.align(Alignment.TopEnd).padding(3.5.u), horizontalArrangement = Arrangement.spacedBy(1.4.u)) {
@@ -99,7 +104,36 @@ fun ProfilePickerScreen(
                 BasicText("Tippe auf das Plus, um das erste Kind anzulegen.", style = nunito(2.2))
             }
         }
-        if (children.isEmpty()) Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).width(22.u))
+        if (children.isEmpty() && !editMode) Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).width(22.u))
+        if (editMode) DetectionSettings(sensitivity, onSensitivity, showMeter, onShowMeter, Modifier.align(Alignment.BottomCenter).padding(bottom = 3.5.u))
+    }
+}
+
+/** Elternbereich: wie leicht Schrubben erkannt wird, und eine Messanzeige zum Ausprobieren. */
+@Composable
+private fun DetectionSettings(
+    sensitivity: Sensitivity,
+    onSensitivity: (Sensitivity) -> Unit,
+    showMeter: Boolean,
+    onShowMeter: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier.padding(bottom = 0.7.u).comic(Color.White, 3.u, 0.5.u, 0.7.u).padding(horizontal = 2.u, vertical = 1.2.u),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(1.2.u),
+    ) {
+        BasicText("Putzerkennung", style = lilita(2.4))
+        for (s in Sensitivity.entries) {
+            val on = s == sensitivity
+            ComicButton({ onSensitivity(s) }, bg = if (on) M.Ink else Color.White, radius = 3.u, border = 0.4.u, shadow = 0.5.u, padding = 1.u) {
+                BasicText(s.label, style = lilita(2.2, if (on) M.Yellow else M.Ink))
+            }
+        }
+        Spacer(Modifier.width(1.5.u))
+        ComicButton({ onShowMeter(!showMeter) }, bg = if (showMeter) M.Ink else Color.White, radius = 3.u, border = 0.4.u, shadow = 0.5.u, padding = 1.u) {
+            BasicText(if (showMeter) "Messanzeige an" else "Messanzeige aus", style = lilita(2.2, if (showMeter) M.Yellow else M.Ink))
+        }
     }
 }
 

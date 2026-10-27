@@ -85,6 +85,8 @@ import kotlin.math.sin
 fun BrushScreen(
     child: Child,
     cameraAllowed: Boolean,
+    sensitivity: de.putzalarm.app.data.Sensitivity,
+    showMeter: Boolean,
     voice: Voice,
     sfx: Sfx,
     onFinished: (SessionResult) -> Unit,
@@ -140,13 +142,14 @@ fun BrushScreen(
                 // Putzen zählt nur mit erkanntem Gesicht und deutlicher Bewegung am Mund,
                 // die kurz anhält. So fliegt nichts, wenn das Kind nur still in die Kamera schaut.
                 val face = cameraOk && fresh && r.hasFace
-                onTime = if (face && r.motion > 0.3f) onTime + dt else 0f
-                offTime = if (!face || r.motion < 0.15f) offTime + dt else 0f
+                onTime = if (face && r.motion > sensitivity.on) onTime + dt else 0f
+                offTime = if (!face || r.motion < sensitivity.off) offTime + dt else 0f
                 active = when {
                     !cameraOk -> true
                     !active -> onTime > 0.25f
-                    else -> offTime < 0.4f
+                    else -> offTime < 0.6f
                 }
+                track.active = active
                 val target = if (cameraOk && fresh && r.hasFace) toView(r, w, h) else Offset(w / 2, h * 0.55f)
                 val m = track.mouth
                 track.mouth = if (m == Offset.Zero) target else m + (target - m) * 0.35f
@@ -169,7 +172,7 @@ fun BrushScreen(
                 Mascot(Modifier.align(Alignment.Center).fillMaxSize(0.62f), pose = HeroPose.FLEX)
             }
         }
-        GameLayer(game, track, cameraOk, Modifier.fillMaxSize().onSizeChanged { viewSize = Size(it.width.toFloat(), it.height.toFloat()) })
+        GameLayer(game, track, cameraOk, if (showMeter) sensitivity else null, Modifier.fillMaxSize().onSizeChanged { viewSize = Size(it.width.toFloat(), it.height.toFloat()) })
         Hud(game, Modifier.fillMaxSize(), onPause = { paused = true })
         if (game.phase == Phase.COUNTDOWN) CountdownOverlay(game.countdown)
         if (game.phase == Phase.DONE) DoneOverlay()
@@ -181,6 +184,7 @@ fun BrushScreen(
 private class Tracking {
     var face = FaceReading()
     var mouth = Offset.Zero
+    var active = false
 }
 
 /** Rechnet Mund-Koordinaten aus dem Kamerabild auf den Bildschirm um (Füllen + Spiegeln wie die Vorschau). */
@@ -194,7 +198,7 @@ private fun toView(r: FaceReading, w: Float, h: Float): Offset {
 }
 
 @Composable
-private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, modifier: Modifier) {
+private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter: de.putzalarm.app.data.Sensitivity?, modifier: Modifier) {
     val measurer = rememberTextMeasurer()
     val unit = LocalU.current
     val density = LocalDensity.current
@@ -244,6 +248,19 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, modif
             translate(mouth.x + 9 * u + wob, mouth.y + 2 * u) {
                 scale(u / 9f, u / 9f, Offset.Zero) { rotate(-20f, Offset.Zero) { drawToothbrush() } }
             }
+        }
+        // Messanzeige für Eltern: Balken = Bewegung am Mund, Strich = Schwelle, Punkt oben = Gesicht erkannt
+        if (meter != null) {
+            val bx = 4.5f * u
+            val top = size.height - 36f * u
+            val bh = 22f * u
+            val bwid = 2.2f * u
+            drawRoundRect(Color.Black.copy(alpha = 0.45f), Offset(bx, top), Size(bwid, bh), CornerRadius(0.6f * u))
+            val lv = face.motion.coerceIn(0f, 1f)
+            drawRoundRect(if (track.active) M.Mint else M.Pink, Offset(bx, top + bh * (1f - lv)), Size(bwid, bh * lv), CornerRadius(0.6f * u))
+            val ty = top + bh * (1f - meter.on)
+            drawLine(Color.White, Offset(bx - 0.6f * u, ty), Offset(bx + bwid + 0.6f * u, ty), 0.35f * u)
+            drawCircle(if (face.hasFace) M.Mint else Color.Red, 0.9f * u, Offset(bx + bwid / 2, top - 1.6f * u))
         }
         // Comic-Rahmen
         val bw = 1.6f * u
