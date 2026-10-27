@@ -50,6 +50,13 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
     <button type="button" id="p-dance" aria-pressed="false">Tanzen</button>
     <button type="button" id="p-brush" aria-pressed="false">Putzen</button>
     <button type="button" id="p-box" aria-pressed="false">Boxen</button>
+    <button type="button" id="p-moonwalk" aria-pressed="false">Moonwalk</button>
+    <button type="button" id="p-karate" aria-pressed="false">Karate</button>
+    <button type="button" id="p-jack" aria-pressed="false">Hampelmann</button>
+    <button type="button" id="p-spin" aria-pressed="false">Pirouette</button>
+    <button type="button" id="p-robot" aria-pressed="false">Roboter</button>
+    <button type="button" id="p-guitar" aria-pressed="false">Luftgitarre</button>
+    <button type="button" id="p-fly" aria-pressed="false">Abheben</button>
     <button type="button" id="p-show" aria-pressed="true">Alle nacheinander</button>
   </div>
   <div class="bar" role="group" aria-label="Gesicht">
@@ -146,9 +153,14 @@ function roundBox(w,h,d,r,m){const g=new THREE.BoxGeometry(w,h,d,24,24,24),p=g.a
 const profile=new THREE.SplineCurve([[0,.84],[.17,.87],[.27,.98],[.29,1.18],[.26,1.5],[.26,1.85],[.28,2.15],[.26,2.38],[.19,2.54],[.115,2.66],[.1,2.8],[.1,2.9]].map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(90);
 const body=new THREE.Mesh(new THREE.LatheGeometry(profile,72),mat.suit);body.scale.z=.78;hero.add(body);
 // --- Beine und Stiefel (Beine stecken weich im Körper) ---
+// Hüftgelenk je Bein, damit er treten, hampeln und moonwalken kann
+const legs=[];
 for(const x of [-.13,.13]){
-  const leg=cap(.11,.58,mat.suit);leg.position.set(x,.58,0);hero.add(leg);
-  const boot=roundBox(.24,.2,.36,.095,mat.boot);boot.position.set(x*1.1,.12,.05);hero.add(boot);
+  const hip=new THREE.Group();hip.position.set(x,1.0,0);hero.add(hip);
+  const leg=cap(.11,.58,mat.suit);leg.position.y=-.42;hip.add(leg);
+  const ankle=new THREE.Group();ankle.position.set(x*.1,-.86,0);hip.add(ankle);
+  const boot=roundBox(.24,.2,.36,.095,mat.boot);boot.position.set(0,-.02,.05);ankle.add(boot);
+  legs.push({hip,ankle,side:Math.sign(x)});
 }
 // Wappen mit B
 const shield=new THREE.Shape();shield.moveTo(0,.2);shield.lineTo(.18,.13);shield.quadraticCurveTo(.18,-.08,0,-.2);shield.quadraticCurveTo(-.18,-.08,-.18,.13);shield.lineTo(0,.2);
@@ -267,6 +279,36 @@ const MOVES={
     {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.5,uz:.15,ez:-1.45},turn:.25},
     {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.1,uz:-.35,ez:.35},hop:.05},
     {L:{sy:1.5,uz:.15,ez:-1.45},R:{sy:1.1,uz:-.35,ez:.35},turn:-.25}]},
+  // Moonwalk: seitlich, ein Fuß gleitet flach nach hinten, der andere steht auf der Spitze
+  moonwalk:{ms:300,f:[
+    {LL:{kx:.3,toe:.8},RL:{kx:-.4},L:{sy:.5,uz:-1.2,ez:-1.1},R:{sy:-.5,uz:-1.25,ez:-1.3},turn:-1.05,hop:.03},
+    {LL:{kx:0,toe:.3},RL:{kx:-.05,toe:.3},L:{sy:.2,uz:-1.25,ez:-1.2},R:{sy:-.2,uz:-1.25,ez:-1.2},turn:-1.05,hop:.05},
+    {LL:{kx:-.4},RL:{kx:.3,toe:.8},L:{sy:-.5,uz:-1.25,ez:-1.3},R:{sy:.5,uz:-1.2,ez:-1.1},turn:-1.05,hop:.03},
+    {LL:{kx:-.05,toe:.3},RL:{kx:0,toe:.3},L:{sy:-.2,uz:-1.25,ez:-1.2},R:{sy:.2,uz:-1.25,ez:-1.2},turn:-1.05,hop:.05}]},
+  // Karate: Fauststoß, Tritt nach vorn, Handkantenschlag, Seitwärtstritt
+  karate:{ms:330,f:[
+    {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.5,uz:.1,ez:-1.5},RL:{kx:.1},LL:{kx:-.1},turn:.3},
+    {L:{uz:.2,ez:-1.5},R:{sy:1.1,uz:-.35,ez:.35},RL:{kx:1.25,toe:-.3},hop:.12,lean:-.12,turn:.2},
+    {L:{sy:1.1,uz:-.35,ez:.35},R:{uz:1.3,ez:-1.1},LL:{kz:.12},RL:{kz:.12},hop:0,turn:-.2},
+    {L:{uz:-.1,ez:-1.55},R:{uz:-.1,ez:-1.55},LL:{kz:1.05,toe:-.3},sway:-.3,hop:.1,turn:.1}]},
+  // Hampelmann
+  jack:{ms:220,f:[
+    {L:{uz:-1.3,ez:-1.45},R:{uz:-1.3,ez:-1.45}},
+    {L:{uz:.1,ez:-1.5},R:{uz:.1,ez:-1.5},LL:{kz:.18},RL:{kz:.18},hop:.16},
+    {L:{uz:1.35,ez:-1.5},R:{uz:1.35,ez:-1.5},LL:{kz:.3},RL:{kz:.3},hop:.04},
+    {L:{uz:.1,ez:-1.5},R:{uz:.1,ez:-1.5},LL:{kz:.18},RL:{kz:.18},hop:.16}]},
+  // Pirouette mit ausgebreiteten Armen
+  spin:{ms:160,spin:true,f:[0,1,2,3].map(k=>({L:{uz:.15,ez:-1.5},R:{uz:.15,ez:-1.5},RL:{kx:.35,toe:.5},hop:.06+.04*(k%2)}))},
+  // Roboter: eckig, Arme im rechten Winkel, ruckelnde Drehungen
+  robot:{ms:280,f:[
+    {L:{uz:-.1,ez:0},R:{uz:-1.3,ez:-1.5},turn:.3,sway:.04},
+    {L:{uz:-.1,ez:0},R:{uz:-.1,ez:0},turn:0},
+    {L:{uz:-1.3,ez:-1.5},R:{uz:-.1,ez:0},turn:-.3,sway:-.04},
+    {L:{sy:1.4,uz:0,ez:-1.5},R:{sy:1.4,uz:0,ez:-1.5},turn:0,hop:.04}]},
+  // Luftgitarre: linke Hand am Hals, rechte schlägt die Saiten, dazu Kopfnicken
+  guitar:{ms:170,f:[0,1,2,3].map(k=>({L:{sy:.9,uz:-.2,ez:.9},R:{sy:1.25,uz:-.9,ez:k%2?.3:.9},LL:{kz:.15},RL:{kz:.15},lean:k%2?.12:0,turn:.35}))},
+  // Abheben wie ein Superheld: Faust nach oben, Umhang weht, er schwebt
+  fly:{ms:420,f:[0,1,2,3].map(k=>({L:{uz:-1.3,ez:-1.45},R:{sy:.3,uz:1.4,ez:-1.5},LL:{kx:-.15,toe:.6},RL:{kx:.1,toe:.6},hop:.35+.1*Math.sin(k*Math.PI/2),lean:-.08}))},
 };
 // Kleine Zahnbürste für die Putz-Bewegung, Borsten nach unten
 const mini=new THREE.Group();
@@ -282,7 +324,13 @@ function applyMove(t){
     lerpA(a.shoulder.rotation,'y',-a.side*mix(A[sa],B[sa],'sy'),.3);
     lerpA(a.upper.rotation,'z',a.side*mix(A[sa],B[sa],'uz'),.3);
     lerpA(a.elbow.rotation,'z',a.side*mix(A[sa],B[sa],'ez'),.3);});
-  for(const k of ['sway','hop','turn'])moveExtra[k]+=(((A[k]||0)*(1-u)+(B[k]||0)*u)-moveExtra[k])*.3;
+  // Beine: kx = nach vorn heben, kz = zur Seite abspreizen, toe = Fußspitze nach unten
+  legs.forEach(l=>{const sl=l.side<0?'LL':'RL';
+    lerpA(l.hip.rotation,'x',-mix(A[sl],B[sl],'kx'),.3);
+    lerpA(l.hip.rotation,'z',l.side*mix(A[sl],B[sl],'kz'),.3);
+    lerpA(l.ankle.rotation,'x',mix(A[sl],B[sl],'toe'),.3);});
+  for(const k of ['sway','hop','turn','lean'])moveExtra[k]=(moveExtra[k]||0)+(((A[k]||0)*(1-u)+(B[k]||0)*u)-(moveExtra[k]||0))*.3;
+  if(M.spin)moveExtra.turn=pos/n*Math.PI*2;
   hero.position.y=moveExtra.hop;
   if(A.brush){hero.updateMatrixWorld(true);const R=arms.find(a=>a.side>0);
     const fist=hero.worldToLocal(R.elbow.localToWorld(new THREE.Vector3(0,.47,0)));
@@ -296,7 +344,8 @@ function applyMove(t){
 function applyPose(t){
   const P=POSES[pose];
   if(mini.parent)hero.remove(mini);
-  for(const k of ['sway','turn'])moveExtra[k]*=.85;
+  for(const k of ['sway','turn','lean'])moveExtra[k]=(moveExtra[k]||0)*.85;
+  legs.forEach(l=>{l.hip.rotation.x*=.8;l.hip.rotation.z*=.8;l.ankle.rotation.x*=.8;});
   arms.forEach(a=>{const [up,el]=a.side<0?P.l:P.r;a.shoulder.rotation.y*=.8;
     let wig=0;if(pose==='flex')wig=Math.sin(t*3)*.08;if(pose==='wave'&&a.side>0)wig=Math.sin(t*7)*.35;if(pose==='jubel')wig=Math.sin(t*6+a.side)*.12;
     // Grundpose: Oberarm waagerecht, Unterarm nach oben (Muskelpose). up > 0 hebt den Oberarm auf beiden Seiten.
@@ -374,9 +423,9 @@ const clock=new THREE.Clock();let lineup=false,show=true,showNext=0,face='auto',
 function frame(){
   const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
   if(!drag){rotY+=velY;velY*=.93;idle+=dt;if(idle>2.5&&!reduce)rotY+=dt*.25;}
-  if(show&&t>showNext){const all=['flex','wave','jubel','dance','brush','box'].filter(k=>k!==pose);pose=all[Math.floor(Math.random()*all.length)];showNext=t+3.2+Math.random()*1.4;markPose();}
+  if(show&&t>showNext){const all=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly'].filter(k=>k!==pose);pose=all[Math.floor(Math.random()*all.length)];showNext=t+3.2+Math.random()*1.4;markPose();}
   if(MOVES[pose])applyMove(reduce?0:t);else applyPose(reduce?0:t);
-  hero.rotation.y=rotY+moveExtra.turn;hero.rotation.z=moveExtra.sway;
+  hero.rotation.y=rotY+moveExtra.turn;hero.rotation.z=moveExtra.sway;hero.rotation.x=moveExtra.lean||0;
   if(!reduce)waveCape(t);
   headG.rotation.z=Math.sin(t*1.3)*.03-moveExtra.sway*.6;
   // Gesicht: meist ein Lächeln, ab und zu grinsen oder breit lachen
@@ -406,7 +455,7 @@ frame();
 // --- Knöpfe ---
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
 group('c-',['gold','chrom','neon'],costume);
-const POSEKEYS=['flex','wave','jubel','dance','brush','box','show'];
+const POSEKEYS=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly','show'];
 function markPose(){POSEKEYS.forEach(o=>document.getElementById('p-'+o).setAttribute('aria-pressed',show?o==='show':o===pose));}
 POSEKEYS.forEach(k=>document.getElementById('p-'+k).addEventListener('click',()=>{show=k==='show';if(!show)pose=k;else showNext=0;markPose();}));
 group('f-',['auto','smile','grin','laugh'],k=>{face=k;mouthTarget={auto:.1,smile:.1,grin:.45,laugh:1}[k];faceNext=clock.elapsedTime+1.5;});
