@@ -33,13 +33,24 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
                         .thenBy { if (it.locale.country == "DE") 1 else 0 },
                 )
         }.getOrNull()
-        if (system != null && system.locale.language == "de") tts.voice = system else if (best != null) tts.voice = best
+        speakVoice = if (system != null && system.locale.language == "de") system else best
+        // Für die Monster-Rufe lieber eine Frauenstimme (klingt hochgepitcht niedlicher). Android verrät das
+        // Geschlecht nicht; bei Google sind „dea“ und „deb“ die Frauenstimmen, sonst nimmt die App eine andere als die Systemstimme.
+        monsterVoice = runCatching {
+            val de = tts.voices?.filter { it.locale.language == "de" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) }.orEmpty()
+            de.filter { "-dea-" in it.name || "-deb-" in it.name }.maxByOrNull { if (it.isNetworkConnectionRequired) 0 else 1 }
+                ?: best.takeIf { it != speakVoice }
+                ?: de.firstOrNull { it != speakVoice }
+        }.getOrNull() ?: speakVoice
+        speakVoice?.let { tts.voice = it }
         restoreVoice()
         pendingClips?.invoke()
         pendingClips = null
     }
 
     private var pendingClips: (() -> Unit)? = null
+    private var speakVoice: android.speech.tts.Voice? = null
+    private var monsterVoice: android.speech.tts.Voice? = null
 
     @Volatile
     private var rendering = false
@@ -67,6 +78,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
             })
             // Kleine, hohe Stimme, aber natürliche Betonung; der Rest kommt beim Abspielen dazu.
             rendering = true
+            monsterVoice?.let { tts.voice = it }
             tts.setPitch(1.45f)
             tts.setSpeechRate(1.05f)
             phrases.entries.forEachIndexed { i, (_, spoken) ->
@@ -78,6 +90,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun restoreVoice() {
+        speakVoice?.let { tts.voice = it }
         tts.setPitch(1.0f)
         tts.setSpeechRate(0.95f)
     }
