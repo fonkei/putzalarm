@@ -45,7 +45,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
       return c.toDataURL('image/png');
     };
     const shoot = (name, extra) => {
-      hero.rotation.y = -0.3 + (extra.turn || 0); hero.rotation.z = extra.sway || 0; P.headG.rotation.z = -(extra.sway || 0) * 0.6;
+      hero.rotation.y = -0.3 + (extra.turn || 0); hero.rotation.z = extra.sway || 0; hero.rotation.x = extra.lean || 0; P.headG.rotation.z = -(extra.sway || 0) * 0.6;
       P.setMouth(0.1, 0); res[name] = grab(cam, 450, 600);
       hero.updateMatrixWorld(true);
       const m = P.headG.localToWorld(new T.Vector3(0, -0.23, 0.16)).project(cam);
@@ -71,7 +71,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
       shoot(`hero_${name}_${i}`, extra);
     });
     P.setPose('flex', 0);
-    hero.position.y = 0; hero.rotation.z = 0;
+    hero.position.y = 0; hero.rotation.z = 0; hero.rotation.x = 0;
     res.__mouths = JSON.stringify({ w: MW, h: MH, at: mouths });
 
     // Monster: genau das 120er-Raster der alten Zeichnung (−0,6 … 0,6), zwei Bilder fürs Zappeln

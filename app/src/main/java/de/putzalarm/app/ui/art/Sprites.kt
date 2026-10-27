@@ -13,11 +13,13 @@ import org.json.JSONObject
 /** Posen von Super Bürsti, je mit ihren Einzelbildern (aus tools/render_sprites.js). */
 enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
     FLEX("flex", 2, 420), WAVE("wave", 4, 120), JUBEL("jubel", 4, 110),
-    DANCE("dance", 4, 190), BRUSH("brush", 4, 110), BOX("box", 4, 200);
+    DANCE("dance", 4, 190), BRUSH("brush", 4, 110), BOX("box", 4, 200),
+    MOONWALK("moonwalk", 4, 300), KARATE("karate", 4, 330), JACK("jack", 4, 220), SPIN("spin", 4, 160),
+    ROBOT("robot", 4, 280), GUITAR("guitar", 4, 170), FLY("fly", 4, 420);
 
     companion object {
         /** Bewegungen, zwischen denen Super Bürsti im Show-Modus wechselt. */
-        val Show = listOf(WAVE, DANCE, BRUSH, BOX, FLEX, JUBEL)
+        val Show = entries.toList()
     }
 }
 
