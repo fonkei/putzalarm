@@ -20,7 +20,10 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         val r = tts.setLanguage(Locale.GERMANY)
         ready = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
         if (!ready) return
-        // Beste Stimme: höchste Qualität, lokal installierte vor Netzwerk-Stimmen, de-DE vor anderen deutschen
+        // Die Stimme, die in den Android-Einstellungen gewählt ist, hat Vorrang (z. B. eine männliche).
+        // Nur wenn dort keine deutsche Stimme eingestellt ist, sucht die App selbst eine aus.
+        val system = runCatching { tts.defaultVoice }.getOrNull()
+        // Sonst beste Stimme: höchste Qualität, lokal installierte vor Netzwerk-Stimmen, de-DE vor anderen deutschen
         val best = runCatching {
             tts.voices
                 ?.filter { it.locale.language == "de" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) }
@@ -30,7 +33,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
                         .thenBy { if (it.locale.country == "DE") 1 else 0 },
                 )
         }.getOrNull()
-        if (best != null) tts.voice = best
+        if (system != null && system.locale.language == "de") tts.voice = system else if (best != null) tts.voice = best
         restoreVoice()
         pendingClips?.invoke()
         pendingClips = null
