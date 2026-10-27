@@ -78,6 +78,18 @@ data class Child(
             return (0L until 7L).map { monday.plusDays(it) in d }
         }
 
+    /** Für Mo bis So der laufenden Woche: morgens (vor 15 Uhr) und abends geputzt? */
+    val weekSlots: List<Pair<Boolean, Boolean>>
+        get() {
+            val monday = LocalDate.now().with(DayOfWeek.MONDAY)
+            val times = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }
+            return (0L until 7L).map { i ->
+                val day = monday.plusDays(i)
+                val that = times.filter { it.toLocalDate() == day }
+                that.any { it.hour < 15 } to that.any { it.hour >= 15 }
+            }
+        }
+
     /** Putzdauer in Sekunden. Die Kleinsten starten mit 90 Sekunden. */
     val brushSeconds: Int get() = if (age <= 3) 90 else 120
 }

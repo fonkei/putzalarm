@@ -19,8 +19,13 @@ class FlyingGerm(
     var x: Float, var y: Float, var vx: Float, var vy: Float, var rot: Float,
     val spin: Float, val size: Float, val color: Color, val kind: GermKind, val seed: Float,
     val life: Float, val scream: String?,
+    /** Tiefe: > 0 fliegt auf die Kamera zu (wird größer), < 0 fliegt nach hinten weg (wird kleiner). */
+    val vz: Float = 0f,
 ) {
     var age = 0f
+
+    /** Größenfaktor durch die Tiefe, 1 = auf Höhe des Mundes. */
+    var z = 1f
 }
 
 class Splat(val x: Float, val y: Float, val color: Color, val size: Float, val plopp: Boolean) {
@@ -135,7 +140,14 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
         val deg = if (side) (if (Random.nextBoolean()) Random.nextFloat() * 35f - 5f else 185f - Random.nextFloat() * 35f)
         else -170f + Random.nextFloat() * 160f
         val a = Math.toRadians(deg.toDouble()).toFloat()
-        val speed = (26f + Random.nextFloat() * 22f) * u
+        // Manche fliegen auf die Kamera zu oder nach hinten weg, statt nur zur Seite
+        val r = Random.nextFloat()
+        val vz = when {
+            r < 0.3f -> 1.0f + Random.nextFloat() * 0.5f
+            r < 0.42f -> -(0.7f + Random.nextFloat() * 0.4f)
+            else -> 0f
+        }
+        val speed = (26f + Random.nextFloat() * 22f) * u * if (vz != 0f) 0.35f else 1f
         val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random() else null
         germs += FlyingGerm(
             x = mouth.x + (Random.nextFloat() - 0.5f) * 3f * u,
@@ -144,7 +156,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             rot = Random.nextFloat() * 40f - 20f, spin = Random.nextFloat() * 160f - 80f,
             size = (6f + Random.nextFloat() * 3.5f) * u,
             color = GermColors.random(), kind = GermKind.entries.random(), seed = Random.nextFloat() * 6f,
-            life = 1.3f + Random.nextFloat() * 1.1f, scream = scream,
+            life = if (vz > 0f) 9f else 1.3f + Random.nextFloat() * 1.1f, scream = scream, vz = vz,
         )
         monsters++
         if (scream != null) events.onScream(scream)
@@ -161,10 +173,21 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             g.vx *= drag
             g.vy = g.vy * drag + 4f * u * dt
             g.rot += g.spin * dt
-            val gone = g.x < -g.size || g.x > w + g.size || g.y < -g.size || g.y > h + g.size
-            if (gone) iter.remove()
+            // Perspektive: Größe wächst/schrumpft gleichmäßig, wer näher kommt, driftet auch schneller nach außen
+            if (g.vz != 0f) {
+                g.z *= 1f + g.vz * dt
+                if (g.vz > 0f) { g.vx *= 1f + g.vz * dt * 0.5f; g.vy *= 1f + g.vz * dt * 0.5f }
+            }
+            val sz = g.size * g.z
+            val gone = g.x < -sz || g.x > w + sz || g.y < -sz || g.y > h + sz || g.z < 0.22f
+            if (g.vz > 0f && g.z > 4.2f) {
+                // Klatscht direkt vor der Kamera an die Scheibe
+                splats += Splat(g.x, g.y, g.color, sz.coerceAtMost(22f * u), plopp = true)
+                events.onPlopp()
+                iter.remove()
+            } else if (gone) iter.remove()
             else if (g.age >= g.life) {
-                val s = Splat(g.x, g.y, g.color, g.size, plopp = Random.nextFloat() < 0.4f)
+                val s = Splat(g.x, g.y, g.color, g.size * g.z, plopp = Random.nextFloat() < 0.4f)
                 splats += s
                 if (s.plopp) events.onPlopp()
                 iter.remove()

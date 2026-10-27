@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import java.time.LocalDate
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.tween
@@ -55,17 +59,12 @@ fun HomeScreen(
 ) {
     LaunchedEffect(child.id) { greet(Greetings.next(child)) }
     BackHandler(onBack = onSwitch)
-    val evening = LocalTime.now().hour >= 15
     DottedBackground {
         Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).fillMaxHeight(0.86f), onTap = { greet(Greetings.poke(child)) })
         Row(Modifier.align(Alignment.TopStart).padding(3.5.u), verticalAlignment = Alignment.CenterVertically) {
             ComicButton(onSwitch, bg = Color.White, radius = 10.u, border = 0.45.u, shadow = 0.6.u, padding = 0.4.u) {
                 ChildAvatar(child, photoDir, 6.u)
             }
-        }
-        Row(Modifier.align(Alignment.TopEnd).padding(3.5.u), horizontalArrangement = Arrangement.spacedBy(2.4.u)) {
-            DayChip(Icon.SUN, now = !evening, done = child.brushedToday(evening = false))
-            DayChip(Icon.MOON, now = evening, done = child.brushedToday(evening = true))
         }
         Column(
             Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd).padding(end = 5.u),
@@ -84,12 +83,21 @@ fun HomeScreen(
             Spacer(Modifier.height(2.6.u))
             val week = child.week
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.u)) {
+                val slots = child.weekSlots
+                val today = LocalDate.now().dayOfWeek.value - 1
                 listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEachIndexed { i, d ->
                     val on = week[i]
-                    Box(
-                        Modifier.weight(1f).aspectRatio(1f).comic(if (on) M.Blue else Color.White, 10.u, 0.45.u),
-                        contentAlignment = Alignment.Center,
-                    ) { BasicText(d, style = lilita(2, if (on) Color.White else M.Ink)) }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(0.6.u)) {
+                        Box(
+                            Modifier.fillMaxWidth().aspectRatio(1f).comic(if (on) M.Blue else Color.White, 10.u, if (i == today) 0.7.u else 0.45.u),
+                            contentAlignment = Alignment.Center,
+                        ) { BasicText(d, style = lilita(2, if (on) Color.White else M.Ink)) }
+                        // Darunter klein: Sonne = morgens geputzt, Mond = abends geputzt
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
+                            SlotMark(Icon.SUN, slots[i].first, M.Yellow)
+                            SlotMark(Icon.MOON, slots[i].second, M.Blue)
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(1.u))
@@ -177,28 +185,11 @@ private object Greetings {
 
 }
 
-/**
- * Sonne = Morgenputzen, Mond = Abendputzen. Was gerade dran ist, leuchtet gelb und pulsiert,
- * Erledigtes wird grün und bekommt einen dicken Haken.
- */
+/** Kleines Sonnen- oder Mondzeichen unter einem Wochentag: farbig, wenn zu der Zeit geputzt wurde. */
 @Composable
-private fun DayChip(icon: Icon, now: Boolean, done: Boolean) {
-    val pulse = if (now && !done) {
-        val t = rememberInfiniteTransition(label = "chip")
-        t.animateFloat(1f, 1.12f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulse").value
-    } else 1f
-    val bg = when { done -> M.Mint; now -> M.Yellow; else -> Color.White }
-    Box(Modifier.scale(pulse)) {
-        Box(
-            Modifier.size(10.u).padding(bottom = 0.6.u).comic(bg, 3.u, 0.5.u, 0.6.u).padding(1.6.u),
-            contentAlignment = Alignment.Center,
-        ) {
-            IconArt(icon, Modifier.fillMaxSize(), color = if (now || done) M.Ink else M.Ink.copy(alpha = 0.35f))
-        }
-        if (done) {
-            Box(
-                Modifier.align(Alignment.BottomEnd).offset(x = 1.2.u, y = 0.8.u).size(5.u).comic(M.Pink, 5.u, 0.45.u).padding(0.9.u),
-            ) { IconArt(Icon.CHECK, Modifier.fillMaxSize(), color = Color.White) }
-        }
-    }
+private fun SlotMark(icon: Icon, done: Boolean, color: Color) {
+    Box(
+        Modifier.size(2.6.u).background(if (done) color else Color.Transparent, CircleShape)
+            .border(0.25.u, if (done) M.Ink else M.Ink.copy(alpha = 0.25f), CircleShape).padding(0.45.u),
+    ) { IconArt(icon, Modifier.fillMaxSize(), color = if (done) M.Ink else M.Ink.copy(alpha = 0.25f)) }
 }

@@ -225,18 +225,19 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
                 drawText(measurer.measure("PLOPP!", ploppStyle), topLeft = tl, alpha = 1f - k)
             }
         }
-        for (g in game.germs) {
+        // Weiter hinten zuerst, damit die nahen Monster vorne drüber fliegen
+        for (g in game.germs.sortedBy { it.z }) {
             val pop = (g.age / 0.25f).coerceAtMost(1f)
             val grow = if (pop < 1f) pop * 1.15f else 1f + 0.15f * (1f - ((g.age - 0.25f) / 0.2f).coerceIn(0f, 1f))
             drawGerm(
-                Offset(g.x, g.y), g.size * grow, g.color, g.kind, g.seed, g.rot,
+                Offset(g.x, g.y), g.size * g.z * grow, g.color, g.kind, g.seed, g.rot,
                 wiggle = sin(g.age * 18f), look = sin(g.age * 7f),
             )
             if (g.scream != null && g.age in 0.05f..1.1f) {
                 val layout = measurer.measure(g.scream, bubbleStyle)
                 val pw = layout.size.width + 1.8f * u
                 val ph = layout.size.height + 1f * u
-                val tl = Offset(g.x - pw / 2, g.y - g.size * 0.6f - ph)
+                val tl = Offset(g.x - pw / 2, g.y - g.size * g.z * 0.6f - ph)
                 drawRoundRect(Color.Black.copy(alpha = 0.18f), tl + Offset(0f, 0.3f * u), Size(pw, ph), CornerRadius(1.2f * u))
                 drawRoundRect(Color.White, tl, Size(pw, ph), CornerRadius(1.2f * u))
                 drawText(layout, topLeft = tl + Offset(0.9f * u, 0.5f * u))
