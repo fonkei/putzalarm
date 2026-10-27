@@ -231,8 +231,8 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
         val face = track.face
         val mouth = track.mouth
         val u = unit.toPx()
-        // Rahmen um den erkannten Mund
-        if (cameraOk && face.hasFace && game.phase != Phase.DONE) drawMouthBrackets(mouth, face, u)
+        // Rahmen um den erkannten Mund nur mit Messanzeige (zum Prüfen der Erkennung), sonst stört er nur
+        if (meter != null && cameraOk && face.hasFace && game.phase != Phase.DONE) drawMouthBrackets(mouth, face, u)
         for (s in game.splats) {
             val k = s.age / 0.55f
             for ((a, dist, r) in s.drops) {
