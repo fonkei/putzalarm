@@ -48,6 +48,11 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
     <button type="button" id="p-wave" aria-pressed="false">Winken</button>
     <button type="button" id="p-jubel" aria-pressed="false">Jubeln</button>
   </div>
+  <div class="bar" role="group" aria-label="Monster">
+    <span>Monster</span>
+    <button type="button" id="m-fly" aria-pressed="true">Fliegen herum</button>
+    <button type="button" id="m-row" aria-pressed="false">Aufstellen</button>
+  </div>
   <p class="note"><b>Für die App:</b> In der App würde Super Bürsti aus diesem Modell als fertig gerenderte Bilder und kurze Animationen (Winken, Jubeln, auf Monster zeigen) eingebaut. So sieht er genauso plastisch aus, und die App bleibt auf dem Tablet schnell.</p>
 </main>
 
@@ -56,6 +61,7 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 (function(){
 const stage=document.getElementById('stage');
 if(!window.THREE){document.getElementById('loading').textContent='3D konnte nicht geladen werden.';return;}
+THREE.ColorManagement.legacyMode=false; // Farben als echte sRGB-Werte, sonst wirken sie blass
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -67,7 +73,7 @@ const camera=new THREE.PerspectiveCamera(32,16/10,0.1,100);
 camera.position.set(0,1.75,9.2);camera.lookAt(0,1.55,0);
 
 // Licht: weiches Umgebungslicht, Hauptlicht oben links mit Schatten, farbige Kantenlichter
-scene.add(new THREE.HemisphereLight(0xfff4e0,0x3a2470,0.75));
+scene.add(new THREE.HemisphereLight(0xfff4e0,0x3a2470,0.9));
 const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(-4,7,6);key.castShadow=true;
 key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:1,far:20});key.shadow.bias=-0.0005;scene.add(key);
 const rimL=new THREE.DirectionalLight(0xff4f8b,1.1);rimL.position.set(-6,3,-5);scene.add(rimL);
@@ -198,7 +204,7 @@ function waveCape(t){const p=capeGeo.attributes.position;
   p.needsUpdate=true;capeGeo.computeVertexNormals();}
 waveCape(0);
 
-shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.45;});bPlane.castShadow=false;
+shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.3;});bPlane.castShadow=false;
 hero.position.y=0;
 
 // --- Kostüme ---
@@ -233,18 +239,57 @@ function applyPose(t){
   hero.position.y+=(hop-hero.position.y)*.3;
 }
 
-// --- Zwei kleine 3D-Kariesmonster, die erschrocken um ihn herumfliegen ---
-function monster(color){
-  const g=new THREE.Group();
-  const geo=new THREE.IcosahedronGeometry(.32,4);const p=geo.attributes.position;const v=new THREE.Vector3();
-  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=1+.12*Math.sin(v.x*12)*Math.sin(v.y*10)*Math.cos(v.z*9);v.multiplyScalar(n);p.setXYZ(i,v.x,v.y,v.z);}
-  geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo,new THREE.MeshPhysicalMaterial({color,roughness:.15,clearcoat:1,clearcoatRoughness:.05,sheen:.5})));
-  for(const x of [-.1,.1]){const e=ball(.085,mat.eye);e.position.set(x,.08,.27);g.add(e);const pp=ball(.04,mat.pupil);pp.position.set(x,.08,.35);g.add(pp);}
-  const m=ball(.07,mat.mouth);m.scale.set(1,1.3,.5);m.position.set(0,-.1,.29);g.add(m);
-  shadowAll(g);scene.add(g);return g;
+// --- Die vier Kariesmonster aus der App als echte 3D-Figuren (Blob, Stachel, Bohne, Zyklop) ---
+// Maße wie in der App-Zeichnung (Raster 120 × 120), nur geteilt durch 100 und mit y nach oben.
+const monInk={pupil:new THREE.MeshPhysicalMaterial({color:0x1d0d22,roughness:.1,clearcoat:1}),
+  mouth:new THREE.MeshStandardMaterial({color:0x3b0f24,roughness:.5}),
+  tongue:new THREE.MeshPhysicalMaterial({color:0xff7aa2,roughness:.3,clearcoat:.6})};
+function monster(kind,hex){
+  const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+  const col=new THREE.Color(hex),dkCol=col.clone().lerp(new THREE.Color(0),.32),ltCol=col.clone().lerp(new THREE.Color(0xffffff),.45);
+  const skin=new THREE.MeshPhysicalMaterial({color:col,roughness:.22,clearcoat:1,clearcoatRoughness:.06,sheen:0});
+  const dk=new THREE.MeshPhysicalMaterial({color:dkCol,roughness:.3,clearcoat:.7});
+  const lt=new THREE.MeshPhysicalMaterial({color:ltCol,roughness:.2,clearcoat:1});
+  // Körper: Kugel, deren Umriss wie in der App geformt ist
+  const R=kind==='spike'?.31:.35;
+  const geo=new THREE.SphereGeometry(R,96,64),p=geo.attributes.position,v=new THREE.Vector3();
+  const tips=[];if(kind==='spike'){const N=14;for(let i=0;i<N;i++){const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),a=i*2.39996;tips.push(new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r));}}
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=v.clone().normalize();let s=1;
+    if(kind==='blob'||kind==='cyclops'){const k=kind==='cyclops'?7:5;const side=Math.hypot(n.x,n.y);s=1+.115*Math.sin(k*Math.atan2(n.y,n.x)+2)*side;}
+    if(kind==='spike'){let h=0;for(const d of tips)h+=Math.pow(Math.max(0,n.dot(d)),28);s=1+.32*h;}
+    v.copy(n).multiplyScalar(R*s);if(kind==='bean')v.set(v.x*.885,v.y*1.057,v.z*.86);p.setXYZ(i,v.x,v.y,v.z);}
+  geo.computeVertexNormals();body.add(new THREE.Mesh(geo,skin));
+  const RZ=kind==='bean'?.86:1;
+  // Dinge auf die Oberfläche setzen und nach außen drehen
+  const onSurf=(m,x,y,lift)=>{const z=Math.sqrt(Math.max(R*R-x*x-y*y,.001))*RZ;m.position.set(x,y,z+lift);m.lookAt(x*3,y*3,z*3+1);body.add(m);return m;};
+  // Flecken
+  for(const [x,y,r] of [[.18,-.16,.04],[-.2,-.2,.03]]){const s=ball(r,dk);s.scale.z=.25;onSurf(s,x,y,0);}
+  // Augen
+  const eyes=kind==='cyclops'?[[0,.1,.14,.065]]:[[-.13,.1,.095,.046],[.13,.1,.095,.046]];
+  const pupils=[];
+  for(const [x,y,r,pr] of eyes){const e=ball(r,mat.eye);e.scale.z=.55;onSurf(e,x,y,.0);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(r,.012,10,40),dk);onSurf(rim,x,y,.01);
+    const pp=ball(pr,monInk.pupil);pp.scale.z=.45;onSurf(pp,x,y+.025,r*.5);pupils.push(pp);
+    const hl=ball(pr*.33,mat.eye);onSurf(hl,x+pr*.35,y+.045,r*.58);}
+  // Augenbrauen: schräg und böse, beim Zyklopen gerade
+  const brow=(x1,y1,x2,y2)=>{const L=Math.hypot(x2-x1,y2-y1),b=cap(.018,L,dk);const holder=new THREE.Group();onSurf(holder,(x1+x2)/2,(y1+y2)/2,.015);b.rotation.z=Math.atan2(y2-y1,x2-x1)-Math.PI/2;holder.add(b);};
+  if(kind==='cyclops')brow(-.14,.3,.14,.3);else{brow(-.22,.21,-.07,.26);brow(.22,.21,.07,.26);}
+  // Schreimund mit Zunge und Zähnchen
+  const mo=ball(.1,monInk.mouth);mo.scale.set(1,1.25,.35);onSurf(mo,0,-.14,0);
+  const to=ball(.06,monInk.tongue);to.scale.set(1,.65,.4);onSurf(to,0,-.21,.01);
+  const th=roundBox(.04,.04,.02,.008,mat.eye);onSurf(th,-.03,-.035,.015);
+  // Fühler der Bohne
+  if(kind==='bean')for(const sx of [-1,1]){const c=new THREE.QuadraticBezierCurve3(new THREE.Vector3(sx*.1,.33,0),new THREE.Vector3(sx*.16,.5,0),new THREE.Vector3(sx*.24,.52,0));
+    body.add(new THREE.Mesh(new THREE.TubeGeometry(c,24,.017,10,false),dk));const k=ball(.05,lt);k.position.set(sx*.24,.52,0);body.add(k);}
+  // Ärmchen mit Händchen, hochgerissen vor Schreck
+  const arms=[];
+  for(const sx of [-1,1]){const a=new THREE.Group();a.position.set(sx*.3,-.04,0);body.add(a);
+    const c=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(sx*.16,.1,0),new THREE.Vector3(sx*.14,.28,0));
+    a.add(new THREE.Mesh(new THREE.TubeGeometry(c,24,.025,10,false),dk));const h=ball(.055,skin);h.position.set(sx*.14,.3,0);a.add(h);arms.push(a);}
+  g.traverse(o=>{if(o.material)o.material.envMapIntensity=.3;});shadowAll(g);scene.add(g);
+  return {g,body,arms,pupils};
 }
-const mons=[monster(0xff5d8f),monster(0x7bdc5a)];
+const mons=[monster('blob',0xff5d8f),monster('spike',0x5ac8fa),monster('bean',0x3ee0b0),monster('cyclops',0x7bdc5a)];
 
 // --- Drehen mit Finger oder Maus ---
 let rotY=-.35,velY=0,drag=false,lastX=0,idle=0;
@@ -256,7 +301,7 @@ function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSiz
   camera.position.z=w/h<1.1?12.5:9.2;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);resize();
 
-const clock=new THREE.Clock();
+const clock=new THREE.Clock();let lineup=false;const tmp=new THREE.Vector3();
 function frame(){
   const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
   if(!drag){rotY+=velY;velY*=.93;idle+=dt;if(idle>2.5&&!reduce)rotY+=dt*.25;}
@@ -264,7 +309,12 @@ function frame(){
   if(!reduce)waveCape(t);
   applyPose(reduce?0:t);
   headG.rotation.z=Math.sin(t*1.3)*.03;
-  mons.forEach((m,i)=>{const a=t*(.7+i*.15)+i*Math.PI;m.position.set(Math.cos(a)*2.2,1.6+i*.9+Math.sin(t*2+i)*.2,Math.sin(a)*1.4);m.rotation.y=-a+Math.PI/2;m.rotation.z=Math.sin(t*5+i)*.25;});
+  mons.forEach((m,i)=>{const a=t*.55+i*Math.PI/2;
+    if(lineup)tmp.set(-1.6+i*1.07,.75+Math.abs(Math.sin(t*3+i))*.12,1.9);else tmp.set(Math.cos(a)*2.5,1.0+(i%2)*1.3+Math.sin(t*2+i)*.15,Math.sin(a)*1.6);
+    m.g.position.lerp(tmp,m.g.position.lengthSq()===0?1:.07);
+    m.g.rotation.y=Math.atan2(camera.position.x-m.g.position.x,camera.position.z-m.g.position.z)*.6+Math.sin(t*1.5+i)*.4; // meist zum Zuschauer
+    m.body.rotation.z=Math.sin(t*5+i)*.18;const sq=1+Math.sin(t*9+i)*.04;m.body.scale.set(1/sq,sq,1);
+    m.arms.forEach((ar,k)=>{ar.rotation.z=Math.sin(t*14+i+k*2)*.35;});});
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
@@ -275,5 +325,6 @@ frame();
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
 group('c-',['gold','chrom','neon'],costume);
 group('p-',['flex','wave','jubel'],k=>{pose=k;});
+group('m-',['fly','row'],k=>{lineup=k==='row';});
 })();
 </script>
