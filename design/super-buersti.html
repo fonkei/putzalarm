@@ -17,7 +17,8 @@ body{margin:0;background:var(--yellow);color:var(--ink);font-family:var(--f-body
 h1,h2{font-family:var(--f-display);font-weight:400;margin:0;line-height:1;text-wrap:balance}
 h1{font-size:clamp(2.6rem,7vw,4.6rem)}
 .lead{max-width:62ch;font-weight:800;font-size:1.08rem}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}
+@media (max-width:1180px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:980px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:520px){.grid{grid-template-columns:1fr}}
 .card{position:relative;background:var(--paper);border:5px solid var(--ink);border-radius:22px;box-shadow:0 8px 0 var(--ink);
@@ -48,7 +49,8 @@ h1{font-size:clamp(2.6rem,7vw,4.6rem)}
 
   <section class="grid" id="cards"></section>
 
-  <p class="note"><b>Meine Empfehlung: A, Bürsti Blitz.</b> Er liest sich sofort als Superheld, wirkt auch ganz klein als App-Symbol und kann später leicht jubeln, winken oder auf die Monster zeigen. Teile lassen sich mischen, etwa die Sonnenbrille aus D für besondere Erfolge.</p>
+  <p class="note"><b>Ausgewählt: A in schlank (A+).</b> Konni hat sich für A entschieden, mit dünnerem Bürstenkopf und schlankerem Körper.</p>
+  <p class="note" style="opacity:.75"><b>Ursprüngliche Empfehlung: A, Bürsti Blitz.</b> Er liest sich sofort als Superheld, wirkt auch ganz klein als App-Symbol und kann später leicht jubeln, winken oder auf die Monster zeigen. Teile lassen sich mischen, etwa die Sonnenbrille aus D für besondere Erfolge.</p>
 </main>
 
 <script>
@@ -73,8 +75,29 @@ const arm=d=>`<path d="${d}" fill="none" stroke="${INK}" stroke-width="9" stroke
 function bubbles(list){return list.map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${WHITE}" stroke="${INK}" stroke-width="3"/><circle cx="${x-r*.35}" cy="${y-r*.35}" r="${r*.25}" fill="${SKY}"/>`).join('');}
 const svg=(inner,bg='')=>`<svg viewBox="0 0 240 320" role="img">${bg}${inner}</svg>`;
 
+const SLIM=svg(
+   `<path d="M104 162 Q62 222 58 304 L120 290 L182 304 Q178 222 136 162Z" fill="${PINK}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M138 166 Q168 220 174 290" fill="none" stroke="#d92a68" stroke-width="5" stroke-linecap="round"/>
+    <path d="M112 276 V296 M128 276 V296" stroke="${INK}" stroke-width="8" stroke-linecap="round"/>
+    <ellipse cx="107" cy="301" rx="13" ry="7" fill="${PINK}" stroke="${INK}" stroke-width="4"/><ellipse cx="133" cy="301" rx="13" ry="7" fill="${PINK}" stroke="${INK}" stroke-width="4"/>
+    <rect x="101" y="150" width="38" height="132" rx="19" fill="${BLUE}" stroke="${INK}" stroke-width="6"/>
+    <circle cx="120" cy="194" r="14" fill="${YEL}" stroke="${INK}" stroke-width="4"/>
+    <g transform="translate(120 196) scale(.68) translate(-122 -197)"><path d="M114 183 h9 q8 0 8 7 q0 5 -5 6 q7 1 7 7 q0 8 -9 8 h-10Z M120 189 v6 h3 q3 0 3 -3 q0 -3 -3 -3Z M120 200 v6 h4 q3 0 3 -3 q0 -3 -3 -3Z" fill="${INK}" fill-rule="evenodd"/></g>
+    ${arm('M103 180 Q78 176 74 152')}${fist(74,146)}${arm('M137 180 Q162 176 166 152')}${fist(166,146)}
+    <path d="M66 134 l6 -10 M80 130 l2 -12 M174 134 l-6 -10 M160 130 l-2 -12" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>
+    ${[0,1,2,3,4].map(i=>{const h=30+((i%2)?6:0)-Math.abs(i-2)*3;return `<rect x="${91+i*12}" y="${60-h}" width="10" height="${h+8}" rx="5" fill="${i%2?SKY:WHITE}" stroke="${INK}" stroke-width="4"/>`}).join('')}
+    <rect x="86" y="54" width="68" height="102" rx="22" fill="${MINT}" stroke="${INK}" stroke-width="6"/>
+    <path d="M89 94 Q120 84 151 94 L151 116 Q134 122 120 113 Q106 122 89 116Z" fill="${INK}"/>
+    <path d="M151 99 l16 -6 l-4 11 Z" fill="${INK}"/>
+    <ellipse cx="108" cy="104" rx="9" ry="11" fill="${WHITE}" stroke="${INK}" stroke-width="3.5"/><ellipse cx="132" cy="104" rx="9" ry="11" fill="${WHITE}" stroke="${INK}" stroke-width="3.5"/>
+    <circle cx="109.5" cy="106" r="4.8" fill="${INK}"/><circle cx="133.5" cy="106" r="4.8" fill="${INK}"/><circle cx="111" cy="103.5" r="1.6" fill="${WHITE}"/><circle cx="135" cy="103.5" r="1.6" fill="${WHITE}"/>
+    <path d="M106 128 Q120 142 134 128 Q120 135 106 128Z" fill="${INK}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><path d="M110 130.5 Q120 134 130 130.5 L128.5 134 Q120 136.5 111.5 134Z" fill="${WHITE}"/>
+    <ellipse cx="95" cy="126" rx="5.5" ry="3.5" fill="${PINK}" opacity=".45"/><ellipse cx="145" cy="126" rx="5.5" ry="3.5" fill="${PINK}" opacity=".45"/>`);
 const V=[
- {k:'A',name:'Bürsti Blitz',tag:'Der klassische Superheld',pick:true,
+ {k:'A+',name:'Super Bürsti',tag:'A in schlank, so kommt er in die App',pick:true,
+  text:'Schmaler Bürstenkopf und schlanker Griff-Körper wie bei einer echten Zahnbürste. Maske, Umhang und Muskel-Pose bleiben.',
+  art:SLIM},
+ {k:'A',name:'Bürsti Blitz',tag:'Der klassische Superheld',
   text:'Heldenmaske, wehender Umhang und Muskel-Pose. Laut, stolz und sofort erkennbar, passt am besten zur Monsterjagd.',
   art:svg(
    `<path d="M92 160 Q40 220 34 300 L120 284 L206 300 Q200 220 148 160Z" fill="${PINK}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>

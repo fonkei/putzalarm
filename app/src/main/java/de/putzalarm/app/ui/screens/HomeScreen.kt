@@ -36,7 +36,7 @@ import de.putzalarm.app.ui.theme.u
 import java.io.File
 import java.time.LocalTime
 
-/** Start: Kapitän Borste, großer Los-Knopf, Wochen-Serie und Zugang zum Album. */
+/** Start: Super Bürsti, großer Los-Knopf, Wochen-Serie und Zugang zum Album. */
 @Composable
 fun HomeScreen(
     child: Child,
@@ -46,7 +46,7 @@ fun HomeScreen(
     onSwitch: () -> Unit,
     greet: (String) -> Unit,
 ) {
-    LaunchedEffect(child.id) { greet("Hallo ${child.name}! Die Monster warten schon.") }
+    LaunchedEffect(child.id) { greet("Hallo ${child.name}! Ich bin Super Bürsti. Die Monster warten schon.") }
     BackHandler(onBack = onSwitch)
     val evening = LocalTime.now().hour >= 15
     DottedBackground {

@@ -7,7 +7,7 @@ schrubbt, fliegen bunte Bakterien schreiend aus dem Mund. Gebaut für Tablets im
 
 - **Wer putzt?** Kinderprofile mit Name, Alter und Foto (oder Monster als Bild). Anlegen und
   Ändern nur über den Elternbereich (kleine Rechenaufgabe).
-- **Start** mit Maskottchen Kapitän Borste, Wochen-Serie und Zugang zum Album.
+- **Start** mit Maskottchen Super Bürsti, Wochen-Serie und Zugang zum Album.
 - **Putzen**: Live-Bild der Frontkamera, Mund-Erkennung mit ML Kit (auf dem Gerät),
   Bewegungserkennung rund um den Mund. Bakterien fliegen nur bei echter Putzbewegung.
   2 Minuten (Alter 3: 90 Sekunden), 4 Zonen, Gebiss-Grafik ohne Text, Punkte, Combos,
