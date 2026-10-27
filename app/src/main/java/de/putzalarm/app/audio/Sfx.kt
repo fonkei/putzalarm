@@ -6,7 +6,7 @@ import android.media.SoundPool
 import de.putzalarm.app.R
 import kotlin.random.Random
 
-/** Comic-Geräusche: schrille Monster-Schreie, PLOPP und Gongs. Erzeugt von tools/gen_sounds.py. */
+/** Comic-Geräusche: Monster-Rufe, PLOPP und Gongs. Erzeugt von tools/gen_sounds.py. */
 class Sfx(context: Context) {
     private val app = context.applicationContext
     private val pool = SoundPool.Builder()
@@ -32,13 +32,25 @@ class Sfx(context: Context) {
     private val combo = load(R.raw.combo)
     private val fanfare = load(R.raw.fanfare)
     private var lastScream = 0L
+    private val words = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
-    /** Ein Monster kreischt, jedes ein bisschen anders hoch. Höchstens alle [gapMs] Millisekunden. */
-    fun scream(gapMs: Long = 260) {
+    /** Ein gesprochenes Monster-Wort (siehe [Voice.renderScreams]) als Sound übernehmen. */
+    fun addWord(text: String, file: java.io.File) {
+        words[text] = pool.load(file.path, 1)
+    }
+
+    /**
+     * Ein Monster ruft [text] mit kleiner, hoher Stimme. Solange die Wörter noch nicht fertig
+     * gesprochen vorliegen, quiekt es stattdessen. Höchstens alle [gapMs] Millisekunden,
+     * damit die Rufe verständlich bleiben.
+     */
+    fun scream(text: String, gapMs: Long = 650) {
         val now = System.currentTimeMillis()
         if (now - lastScream < gapMs) return
         lastScream = now
-        play(screams.random(), 0.75f, 1.0f + Random.nextFloat() * 0.45f)
+        val word = words[text]
+        if (word != null) play(word, 1f, 1.12f + Random.nextFloat() * 0.18f)
+        else play(screams.random(), 0.6f, 0.95f + Random.nextFloat() * 0.2f)
     }
 
     fun plopp() = play(plopp, 0.6f, 0.85f + Random.nextFloat() * 0.5f)

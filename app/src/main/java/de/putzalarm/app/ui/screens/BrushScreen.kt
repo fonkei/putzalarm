@@ -101,7 +101,7 @@ fun BrushScreen(
                 voice.say(BrushGame.ZoneLines[zone])
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-            override fun onScream(text: String) = sfx.scream()
+            override fun onScream(text: String) = sfx.scream(text)
             override fun onPlopp() = sfx.plopp()
             override fun onCombo() = sfx.combo()
             override fun onIdle() = voice.say("Schrubb, schrubb! Die Monster verstecken sich!")

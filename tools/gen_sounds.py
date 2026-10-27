@@ -14,8 +14,8 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "app", "src", "main", "res",
 rng = np.random.default_rng(7)
 
 # Winzige Kariesmonster: Tonhöhe und Formanten kräftig nach oben (Mickymaus-Effekt)
-PITCH = 1.9
-FORMANT = 1.5
+PITCH = 1.35
+FORMANT = 1.2
 
 # Formanten (F1, F2, F3) für Kinder-/Monsterstimmen, leicht nach oben verschoben
 VOWELS = {

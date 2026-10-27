@@ -30,6 +30,9 @@ class MainActivity : ComponentActivity() {
         val store = ProfileStore(applicationContext)
         voice = Voice(this)
         sfx = Sfx(this)
+        voice.renderScreams(java.io.File(cacheDir, "rufe"), de.putzalarm.app.ui.screens.BrushGame.Screams) { shown, file ->
+            sfx.addWord(shown, file)
+        }
         setContent {
             PutzalarmTheme { App(store, voice, sfx) }
         }

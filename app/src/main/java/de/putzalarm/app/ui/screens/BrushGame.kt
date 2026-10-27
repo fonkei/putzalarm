@@ -136,7 +136,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
         else -170f + Random.nextFloat() * 160f
         val a = Math.toRadians(deg.toDouble()).toFloat()
         val speed = (26f + Random.nextFloat() * 22f) * u
-        val scream = if (Random.nextFloat() < 0.35f) Screams.random() else null
+        val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random() else null
         germs += FlyingGerm(
             x = mouth.x + (Random.nextFloat() - 0.5f) * 3f * u,
             y = mouth.y + (Random.nextFloat() - 0.5f) * 1.5f * u,
@@ -175,7 +175,18 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
     }
 
     companion object {
-        val Screams = listOf("Iiiih!", "Hilfe!", "Neeein!", "Aaah!", "Uaaah!", "Nicht die Bürste!", "Wir hauen ab!", "Mamaaa!", "Huch!")
+        /** Was die Monster rufen: Sprechblasen-Text und, wie die Sprachausgabe es sprechen soll. */
+        val Screams = linkedMapOf(
+            "Hilfe!" to "Hilfe!",
+            "Mamaaa!" to "Mamaa!",
+            "Aaaah!" to "Aaaaaaa!",
+            "Neeein!" to "Neiiin!",
+            "Iiiih!" to "Iiiiiii!",
+            "Wir hauen ab!" to "Wir hauen ab!",
+            "Nicht die Bürste!" to "Nicht die Bürste!",
+            "Rettet euch!" to "Rettet euch!",
+            "Uaaah!" to "Uaaaaa!",
+        )
         val ZoneLines = listOf("Los! Erst oben!", "Jetzt die andere Seite oben!", "Jetzt unten!", "Und jetzt die andere Seite unten!")
     }
 }
