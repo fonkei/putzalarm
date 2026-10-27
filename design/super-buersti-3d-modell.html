@@ -34,7 +34,7 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 
 <main class="wrap">
   <h1>Super Bürsti in echtem 3D</h1>
-  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
+  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz, jetzt schlank wie eine echte Zahnbürste und mit Borsten auf dem Hinterkopf. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
   <div class="stage" id="stage"><div class="loading" id="loading">Super Bürsti wird aufgebaut …</div><span class="hint">Ziehen zum Drehen</span></div>
   <div class="bar" role="group" aria-label="Kostüm">
     <span>Kostüm</span>
@@ -44,7 +44,7 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
   </div>
   <div class="bar" role="group" aria-label="Pose">
     <span>Pose</span>
-    <button type="button" id="p-flex" aria-pressed="true">Muskeln</button>
+    <button type="button" id="p-flex" aria-pressed="true">Stark</button>
     <button type="button" id="p-wave" aria-pressed="false">Winken</button>
     <button type="button" id="p-jubel" aria-pressed="false">Jubeln</button>
   </div>
@@ -60,7 +60,7 @@ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 stage.prepend(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(32,16/10,0.1,100);
@@ -118,85 +118,87 @@ const ball=(r,m)=>new THREE.Mesh(new THREE.SphereGeometry(r,40,28),m);
 
 const hero=new THREE.Group();scene.add(hero);
 
-// --- Beine und Stiefel ---
-for(const x of [-.2,.2]){
-  const leg=cap(.13,.55,mat.suit);leg.position.set(x,.62,0);hero.add(leg);
-  const boot=slab(roundedRect(.34,.22,.1),.36,.05,mat.boot);boot.position.set(x*1.08,.16,.05);hero.add(boot);
+// Abgerundeter Kasten ohne Kanten: jeder Punkt wird auf eine Kugel um den inneren Kern geschoben
+function roundBox(w,h,d,r,m){const g=new THREE.BoxGeometry(w,h,d,24,24,24),p=g.attributes.position,n=g.attributes.normal;
+  const hx=w/2-r,hy=h/2-r,hz=d/2-r,v=new THREE.Vector3(),c=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);c.set(THREE.MathUtils.clamp(v.x,-hx,hx),THREE.MathUtils.clamp(v.y,-hy,hy),THREE.MathUtils.clamp(v.z,-hz,hz));
+    const dir=v.clone().sub(c).normalize();v.copy(c).addScaledVector(dir,r);p.setXYZ(i,v.x,v.y,v.z);n.setXYZ(i,dir.x,dir.y,dir.z);}
+  return new THREE.Mesh(g,m);}
+
+// --- Körper: schlanker Zahnbürsten-Griff als gedrehte, glatte Form ---
+const profile=new THREE.SplineCurve([[0,.84],[.17,.87],[.27,.98],[.29,1.18],[.26,1.5],[.26,1.85],[.28,2.15],[.26,2.38],[.19,2.54],[.115,2.66],[.1,2.8],[.1,2.9]].map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(90);
+const body=new THREE.Mesh(new THREE.LatheGeometry(profile,72),mat.suit);body.scale.z=.78;hero.add(body);
+// --- Beine und Stiefel (Beine stecken weich im Körper) ---
+for(const x of [-.13,.13]){
+  const leg=cap(.11,.58,mat.suit);leg.position.set(x,.58,0);hero.add(leg);
+  const boot=roundBox(.24,.2,.36,.095,mat.boot);boot.position.set(x*1.1,.12,.05);hero.add(boot);
 }
-// --- Oberkörper in V-Form ---
-const torsoShape=new THREE.Shape();
-torsoShape.moveTo(-.62,1.0);torsoShape.quadraticCurveTo(0,1.12,.62,1.0);torsoShape.quadraticCurveTo(.72,.92,.66,.75);
-torsoShape.lineTo(.36,-.55);torsoShape.quadraticCurveTo(0,-.66,-.36,-.55);torsoShape.lineTo(-.66,.75);torsoShape.quadraticCurveTo(-.72,.92,-.62,1.0);
-const torso=slab(torsoShape,.42,.12,mat.suit);torso.position.set(0,1.62,0);hero.add(torso);
-// Brustmuskeln
-for(const x of [-.25,.25]){const pec=ball(.27,mat.suit);pec.scale.set(1.15,.62,.5);pec.position.set(x,2.12,.24);hero.add(pec);}
-// Sixpack
-for(let r=0;r<3;r++)for(const x of [-.1,.1]){const ab=slab(roundedRect(.16,.13,.05),.04,.03,mat.suit);ab.position.set(x,1.72-r*.18,.29);hero.add(ab);}
 // Wappen mit B
-const shield=new THREE.Shape();shield.moveTo(0,.24);shield.lineTo(.22,.16);shield.quadraticCurveTo(.22,-.1,0,-.24);shield.quadraticCurveTo(-.22,-.1,-.22,.16);shield.lineTo(0,.24);
-const emb=slab(shield,.05,.03,mat.trim);emb.position.set(0,2.08,.42);hero.add(emb);
+const shield=new THREE.Shape();shield.moveTo(0,.2);shield.lineTo(.18,.13);shield.quadraticCurveTo(.18,-.08,0,-.2);shield.quadraticCurveTo(-.18,-.08,-.18,.13);shield.lineTo(0,.2);
+const emb=slab(shield,.03,.025,mat.trim);emb.position.set(0,2.05,.235);hero.add(emb);
 const bc=document.createElement('canvas');bc.width=bc.height=128;const bx=bc.getContext('2d');
 bx.font='900 104px "Arial Black", Arial, sans-serif';bx.textAlign='center';bx.textBaseline='middle';bx.lineWidth=10;bx.strokeStyle='#24123a';bx.strokeText('B',64,70);bx.fillStyle='#2f6bff';bx.fillText('B',64,70);
 const bTex=new THREE.CanvasTexture(bc);bTex.encoding=THREE.sRGBEncoding;
-const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.position.set(0,2.09,.475);hero.add(bPlane);
+const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.position.set(0,2.06,.285);hero.add(bPlane);
 // Gürtel
-const belt=new THREE.Mesh(new THREE.TorusGeometry(.38,.07,16,48),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(1,.62,1);belt.position.y=1.15;hero.add(belt);
-const buckle=slab(roundedRect(.22,.2,.05),.06,.03,mat.trim);buckle.position.set(0,1.15,.27);hero.add(buckle);
-// Neonlinien (nur im Neon-Kostüm sichtbar)
+const belt=new THREE.Mesh(new THREE.TorusGeometry(.262,.035,16,64),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(1,.78,1);belt.position.y=1.5;hero.add(belt);
+const buckle=roundBox(.16,.13,.05,.024,mat.trim);buckle.position.set(0,1.5,.22);hero.add(buckle);
+// Neonringe (nur im Neon-Kostüm sichtbar)
 const neon=new THREE.Group();hero.add(neon);
-const tube=(pts)=>new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),40,.018,8,false),mat.glow);
-neon.add(tube([[-.5,2.35,.25],[-.2,2.0,.34],[0,1.95,.36],[.2,2.0,.34],[.5,2.35,.25]]));
-neon.add(tube([[-.25,1.3,.3],[-.3,1.7,.32],[-.35,2.0,.3]]));neon.add(tube([[.25,1.3,.3],[.3,1.7,.32],[.35,2.0,.3]]));
+for(const [y,r] of [[1.2,.29],[1.78,.262],[2.32,.27]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r+.005,.014,8,64),mat.glow);ring.rotation.x=Math.PI/2;ring.scale.set(1,.78,1);ring.position.y=y;neon.add(ring);}
 
-// --- Arme (mit Gelenken für Posen) ---
+// --- Schlanke Arme (mit Gelenken für Posen) ---
 function makeArm(side){
-  const shoulder=new THREE.Group();shoulder.position.set(side*.72,2.42,0);hero.add(shoulder);
-  shoulder.add(ball(.24,mat.suit));
+  const shoulder=new THREE.Group();shoulder.position.set(side*.22,2.3,0);hero.add(shoulder);
+  shoulder.add(ball(.1,mat.suit));
   const upper=new THREE.Group();shoulder.add(upper);
-  const ua=cap(.13,.42,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.33;upper.add(ua);
-  const bicep=ball(.2,mat.suit);bicep.scale.set(1.2,1,.95);bicep.position.set(side*.34,.1,0);upper.add(bicep);
-  const elbow=new THREE.Group();elbow.position.x=side*.66;upper.add(elbow);
-  elbow.add(ball(.13,mat.suit));
-  const fa=cap(.115,.38,mat.suit);fa.position.y=.26;elbow.add(fa);
-  const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.1,24),mat.trim);cuff.position.y=.5;elbow.add(cuff);
-  const fist=ball(.19,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=.68;elbow.add(fist);
+  const ua=cap(.085,.36,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.22;upper.add(ua);
+  const elbow=new THREE.Group();elbow.position.x=side*.44;upper.add(elbow);
+  elbow.add(ball(.085,mat.suit));
+  const fa=cap(.08,.3,mat.suit);fa.position.y=.18;elbow.add(fa);
+  const cuff=new THREE.Mesh(new THREE.TorusGeometry(.085,.03,12,32),mat.trim);cuff.rotation.x=Math.PI/2;cuff.position.y=.36;elbow.add(cuff);
+  const fist=ball(.12,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=.47;elbow.add(fist);
   return {shoulder,upper,elbow,side};
 }
 const arms=[makeArm(-1),makeArm(1)];
 
-// --- Hals und Kopf (Bürstenkopf) ---
-const neck=new THREE.Mesh(new THREE.CylinderGeometry(.14,.16,.22,24),new THREE.MeshPhysicalMaterial({color:0x2bb48c,roughness:.3,clearcoat:.8}));neck.position.y=2.72;hero.add(neck);
-const headG=new THREE.Group();headG.position.y=3.32;hero.add(headG);
-const head=slab(roundedRect(.68,1.0,.24),.42,.1,mat.head);headG.add(head);
-// Borsten als Frisur
+// --- Kopf (Bürstenkopf, ganz ohne Kanten) ---
+const headG=new THREE.Group();headG.position.y=3.2;hero.add(headG);
+const head=roundBox(.66,.94,.32,.15,mat.head);headG.add(head);
+// Borsten wie bei einer echten Bürste: dichte Büschel auf dem Hinterkopf, die oberen Reihen biegen sich nach oben
 const bristles=new THREE.Group();headG.add(bristles);
-for(let i=0;i<5;i++)for(let j=0;j<2;j++){const h=.3+((i%2)?.08:0)-Math.abs(i-2)*.035;
-  const b=cap(.05,h,(i+j)%2?mat.bristleB:mat.bristleA);b.position.set(-.24+i*.12,.52+h/2,-.08+j*.17);b.rotation.z=(i-2)*-.06;b.rotation.x=(j-.5)*.12;bristles.add(b);}
+const ROWS=7,COLS=5;
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  const y=.33-r*.11,x=-.2+c*.1,top=r<2;
+  const L=top?.3:.24,tuft=cap(.042,L,r%2?mat.bristleB:mat.bristleA);
+  const holder=new THREE.Group();holder.position.set(x,y,-.13);bristles.add(holder);
+  tuft.position.y=L/2+.02;holder.add(tuft);
+  holder.rotation.x=-Math.PI/2+(top?(r===0?1.0:.55):0); // nach hinten, oben nach oben gekippt
+}
 // Maske
-const maskShape=new THREE.Shape();maskShape.moveTo(-.4,.12);maskShape.quadraticCurveTo(0,.2,.4,.12);maskShape.lineTo(.4,-.1);maskShape.quadraticCurveTo(.18,-.18,0,-.07);maskShape.quadraticCurveTo(-.18,-.18,-.4,-.1);maskShape.lineTo(-.4,.12);
-const mask=slab(maskShape,.04,.02,mat.mask);mask.position.set(0,.08,.3);mask.scale.set(1,1,1);headG.add(mask);
-const tail=new THREE.Mesh(new THREE.ConeGeometry(.07,.32,12),mat.mask);tail.rotation.z=-Math.PI/2.3;tail.position.set(.5,.12,.05);headG.add(tail);
+const maskShape=new THREE.Shape();maskShape.moveTo(-.29,.1);maskShape.quadraticCurveTo(0,.17,.29,.1);maskShape.lineTo(.29,-.08);maskShape.quadraticCurveTo(.14,-.15,0,-.06);maskShape.quadraticCurveTo(-.14,-.15,-.29,-.08);maskShape.lineTo(-.29,.1);
+const mask=slab(maskShape,.02,.02,mat.mask);mask.position.set(0,.08,.17);headG.add(mask);
 // Augen
-for(const x of [-.15,.15]){const e=ball(.105,mat.eye);e.scale.set(.9,1.1,.55);e.position.set(x,.06,.34);headG.add(e);
-  const p=ball(.05,mat.pupil);p.position.set(x+.015,.04,.4);headG.add(p);
-  const h=ball(.016,mat.eye);h.position.set(x+.04,.08,.44);headG.add(h);}
+for(const x of [-.13,.13]){const e=ball(.09,mat.eye);e.scale.set(.9,1.1,.5);e.position.set(x,.06,.2);headG.add(e);
+  const p=ball(.043,mat.pupil);p.position.set(x+.013,.04,.24);headG.add(p);
+  const h=ball(.014,mat.eye);h.position.set(x+.035,.075,.275);headG.add(h);}
 // Grinsen
-const smile=new THREE.Mesh(new THREE.TorusGeometry(.13,.035,12,32,Math.PI),mat.mouth);smile.rotation.z=Math.PI;smile.position.set(0,-.2,.33);headG.add(smile);
-const teeth=new THREE.Mesh(new THREE.BoxGeometry(.16,.035,.03),mat.tooth);teeth.position.set(0,-.235,.355);headG.add(teeth);
-for(const x of [-.25,.25]){const ck=ball(.06,mat.cheek);ck.scale.set(1.3,.7,.3);ck.position.set(x,-.15,.31);headG.add(ck);}
+const smile=new THREE.Mesh(new THREE.TorusGeometry(.11,.03,12,32,Math.PI),mat.mouth);smile.rotation.z=Math.PI;smile.position.set(0,-.19,.165);headG.add(smile);
+const teeth=new THREE.Mesh(new THREE.CapsuleGeometry(.016,.11,4,12),mat.tooth);teeth.rotation.z=Math.PI/2;teeth.position.set(0,-.215,.19);headG.add(teeth);
+for(const x of [-.21,.21]){const ck=ball(.05,mat.cheek);ck.scale.set(1.3,.7,.3);ck.position.set(x,-.14,.165);headG.add(ck);}
 
 // --- Umhang (weht) ---
-const capeGeo=new THREE.PlaneGeometry(1.7,2.4,24,30);
+const capeGeo=new THREE.PlaneGeometry(1.2,2.1,24,30);
 const capeBase=capeGeo.attributes.position.array.slice();
-const cape=new THREE.Mesh(capeGeo,mat.cape);cape.position.set(0,1.38,-.4);hero.add(cape);
+const cape=new THREE.Mesh(capeGeo,mat.cape);cape.position.set(0,1.38,-.25);hero.add(cape);
 function waveCape(t){const p=capeGeo.attributes.position;
-  for(let i=0;i<p.count;i++){const x=capeBase[i*3],y=capeBase[i*3+1];const down=(1.2-y)/2.4; // 0 oben, 1 unten
-    const narrow=1-.45*(1-down);p.setX(i,x*narrow);
-    p.setZ(i,-down*down*.55-Math.sin(x*3+t*2.2+down*4)*.08*down-Math.cos(x*2.2)*.06);}
+  for(let i=0;i<p.count;i++){const x=capeBase[i*3],y=capeBase[i*3+1];const down=(1.05-y)/2.1; // 0 oben, 1 unten
+    const narrow=1-.5*(1-down);p.setX(i,x*narrow);
+    p.setZ(i,-down*down*.5-Math.sin(x*3+t*2.2+down*4)*.07*down-Math.cos(x*2.6)*.05);}
   p.needsUpdate=true;capeGeo.computeVertexNormals();}
 waveCape(0);
 
-shadowAll(hero);bPlane.castShadow=false;
+shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.45;});bPlane.castShadow=false;
 hero.position.y=0;
 
 // --- Kostüme ---
@@ -207,7 +209,7 @@ const COSTUMES={
 };
 function costume(k){const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
   mat.trim.color.setHex(c.trim);mat.cape.color.setHex(c.cape);mat.head.color.setHex(c.head);mat.boot.color.setHex(c.boot);mat.glove.color.setHex(c.glove);
-  neck.material.color.setHex(new THREE.Color(c.head).multiplyScalar(.75).getHex());neon.visible=c.neon;
+  neon.visible=c.neon;
   bx.clearRect(0,0,128,128);bx.strokeText('B',64,70);bx.fillStyle=c.b;bx.fillText('B',64,70);bTex.needsUpdate=true;}
 costume('gold');
 
