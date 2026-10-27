@@ -34,7 +34,7 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 
 <main class="wrap">
   <h1>Super Bürsti in echtem 3D</h1>
-  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz, jetzt schlank wie eine echte Zahnbürste und mit Borsten auf dem Hinterkopf. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
+  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz. Er lächelt meistens und lacht ab und zu breit mit glänzenden Zähnen. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
   <div class="stage" id="stage"><div class="loading" id="loading">Super Bürsti wird aufgebaut …</div><span class="hint">Ziehen zum Drehen</span></div>
   <div class="bar" role="group" aria-label="Kostüm">
     <span>Kostüm</span>
@@ -44,9 +44,20 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
   </div>
   <div class="bar" role="group" aria-label="Pose">
     <span>Pose</span>
-    <button type="button" id="p-flex" aria-pressed="true">Stark</button>
+    <button type="button" id="p-flex" aria-pressed="false">Stark</button>
     <button type="button" id="p-wave" aria-pressed="false">Winken</button>
     <button type="button" id="p-jubel" aria-pressed="false">Jubeln</button>
+    <button type="button" id="p-dance" aria-pressed="false">Tanzen</button>
+    <button type="button" id="p-brush" aria-pressed="false">Putzen</button>
+    <button type="button" id="p-box" aria-pressed="false">Boxen</button>
+    <button type="button" id="p-show" aria-pressed="true">Alle nacheinander</button>
+  </div>
+  <div class="bar" role="group" aria-label="Gesicht">
+    <span>Gesicht</span>
+    <button type="button" id="f-auto" aria-pressed="true">Mal so, mal so</button>
+    <button type="button" id="f-smile" aria-pressed="false">Lächeln</button>
+    <button type="button" id="f-grin" aria-pressed="false">Grinsen</button>
+    <button type="button" id="f-laugh" aria-pressed="false">Lachen</button>
   </div>
   <div class="bar" role="group" aria-label="Monster">
     <span>Monster</span>
@@ -188,9 +199,26 @@ const mask=slab(maskShape,.02,.02,mat.mask);mask.position.set(0,.08,.17);headG.a
 for(const x of [-.13,.13]){const e=ball(.09,mat.eye);e.scale.set(.9,1.1,.5);e.position.set(x,.06,.2);headG.add(e);
   const p=ball(.043,mat.pupil);p.position.set(x+.013,.04,.24);headG.add(p);
   const h=ball(.014,mat.eye);h.position.set(x+.035,.075,.275);headG.add(h);}
-// Grinsen
-const smile=new THREE.Mesh(new THREE.TorusGeometry(.11,.03,12,32,Math.PI),mat.mouth);smile.rotation.z=Math.PI;smile.position.set(0,-.19,.165);headG.add(smile);
-const teeth=new THREE.Mesh(new THREE.CapsuleGeometry(.016,.11,4,12),mat.tooth);teeth.rotation.z=Math.PI/2;teeth.position.set(0,-.215,.19);headG.add(teeth);
+// Mund: Lachlinie, darunter ein Mund, der sich mal mehr, mal weniger öffnet und dann glänzende Zähne zeigt
+const mouthG=new THREE.Group();mouthG.position.set(0,-.17,.158);headG.add(mouthG);
+const lipCurve=new THREE.CatmullRomCurve3([[-.15,.035],[-.1,0],[0,-.018],[.1,0],[.15,.035]].map(p=>new THREE.Vector3(p[0],p[1],.012)));
+mouthG.add(new THREE.Mesh(new THREE.TubeGeometry(lipCurve,40,.015,10,false),mat.mouth));
+const holeShape=new THREE.Shape();holeShape.moveTo(-.125,0);holeShape.quadraticCurveTo(0,-.03,.125,0);
+holeShape.quadraticCurveTo(.12,-.17,0,-.17);holeShape.quadraticCurveTo(-.12,-.17,-.125,0);
+const holeG=new THREE.Group();mouthG.add(holeG);
+const hole=new THREE.Mesh(new THREE.ExtrudeGeometry(holeShape,{depth:.012,bevelEnabled:true,bevelThickness:.004,bevelSize:.004,bevelSegments:3,curveSegments:24}),mat.mouth);holeG.add(hole);
+const tongue=ball(.07,new THREE.MeshPhysicalMaterial({color:0xff6f96,roughness:.35,clearcoat:.5}));tongue.scale.set(1.2,.55,.3);tongue.position.set(0,-.14,.012);holeG.add(tongue);
+const toothMat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.06,clearcoat:1,clearcoatRoughness:.02,sheen:.3});
+const teethG=new THREE.Group();mouthG.add(teethG);
+for(let i=0;i<6;i++){const x=-.085+i*.034,tw=.03;const tt=roundBox(tw,.05,.022,.011,toothMat);tt.position.set(x,-.028-.025+Math.abs(x)*.12,.014);teethG.add(tt);}
+// kleines Glitzern an den Zähnen
+const bling=new THREE.Group();for(const r of [0,Math.PI/2]){const b=new THREE.Mesh(new THREE.PlaneGeometry(.11,.016),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true}));b.rotation.z=r;bling.add(b);}
+bling.position.set(.07,-.05,.04);mouthG.add(bling);
+let mouthOpen=.1,mouthTarget=.1;
+function setMouth(o,t){holeG.scale.y=Math.max(.06,o);hole.visible=o>.07;tongue.visible=o>.45;
+  const tv=Math.min(1,Math.max(0,(o-.18)/.3));teethG.visible=tv>0;teethG.scale.set(1,tv,1);
+  const bl=o>.7?Math.max(0,Math.sin(t*5)):0;bling.visible=bl>.05;bling.scale.setScalar(bl);bling.rotation.z=t*2;
+  bling.children.forEach(c=>c.material.opacity=bl);}
 for(const x of [-.21,.21]){const ck=ball(.05,mat.cheek);ck.scale.set(1.3,.7,.3);ck.position.set(x,-.14,.165);headG.add(ck);}
 
 // --- Umhang (weht) ---
@@ -225,10 +253,51 @@ const POSES={
   wave:{l:[0,0],r:[.55,-1.2]},
   jubel:{l:[.8,-1.25],r:[.8,-1.25]},
 };
-let pose='flex';
+// Weitere Bewegungen als Schlüsselbilder (wie in der App). Pro Arm: sy = nach vorn schwenken,
+// uz = Oberarm heben, ez = Unterarm nach innen beugen.
+const MOVES={
+  dance:{ms:380,f:[
+    {L:{uz:-.9,ez:-1.2},R:{uz:1.1,ez:-.4},sway:.1,hop:.06,turn:.15},
+    {L:{uz:-.4,ez:-.6},R:{uz:.4,ez:.6},sway:0,hop:.14,turn:0},
+    {L:{uz:1.1,ez:-.4},R:{uz:-.9,ez:-1.2},sway:-.1,hop:.06,turn:-.15},
+    {L:{uz:.4,ez:.6},R:{uz:-.4,ez:-.6},sway:0,hop:.14,turn:0}]},
+  brush:{ms:150,f:[-.14,0,.14,0].map(d=>({L:{uz:-1.3,ez:-1.45},R:{sy:1.35+d,uz:.55,ez:-.7},brush:true,turn:.1}))},
+  box:{ms:300,f:[
+    {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.1,uz:-.35,ez:.35}},
+    {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.5,uz:.15,ez:-1.45},turn:.25},
+    {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.1,uz:-.35,ez:.35},hop:.05},
+    {L:{sy:1.5,uz:.15,ez:-1.45},R:{sy:1.1,uz:-.35,ez:.35},turn:-.25}]},
+};
+// Kleine Zahnbürste für die Putz-Bewegung, Borsten nach unten
+const mini=new THREE.Group();
+{const mh=new THREE.Mesh(new THREE.CapsuleGeometry(.03,.42,6,12),mat.boot);mh.position.y=.2;mini.add(mh);
+ const mhead=new THREE.Mesh(new THREE.CapsuleGeometry(.045,.08,6,12),mat.head);mhead.position.set(0,.46,.02);mini.add(mhead);
+ for(let k=0;k<3;k++){const br=new THREE.Mesh(new THREE.CapsuleGeometry(.018,.05,4,8),mat.bristleA);br.rotation.x=Math.PI/2;br.position.set(0,.43+k*.035,.08);mini.add(br);}}
+let pose='flex',moveExtra={sway:0,hop:0,turn:0};
+const lerpA=(o,k,v,f)=>{o[k]+=(v-o[k])*f;};
+function applyMove(t){
+  const M=MOVES[pose],n=M.f.length,pos=t*1000/M.ms,i=Math.floor(pos)%n,j=(i+1)%n;let u=pos-Math.floor(pos);u=u*u*(3-2*u);
+  const A=M.f[i],B=M.f[j],mix=(a,b,k)=>((a&&a[k])||0)*(1-u)+((b&&b[k])||0)*u;
+  arms.forEach(a=>{const sa=a.side<0?'L':'R';
+    lerpA(a.shoulder.rotation,'y',-a.side*mix(A[sa],B[sa],'sy'),.3);
+    lerpA(a.upper.rotation,'z',a.side*mix(A[sa],B[sa],'uz'),.3);
+    lerpA(a.elbow.rotation,'z',a.side*mix(A[sa],B[sa],'ez'),.3);});
+  for(const k of ['sway','hop','turn'])moveExtra[k]+=(((A[k]||0)*(1-u)+(B[k]||0)*u)-moveExtra[k])*.3;
+  hero.position.y=moveExtra.hop;
+  if(A.brush){hero.updateMatrixWorld(true);const R=arms.find(a=>a.side>0);
+    const fist=hero.worldToLocal(R.elbow.localToWorld(new THREE.Vector3(0,.47,0)));
+    const dir=new THREE.Vector3(.02,3.0,.24).sub(fist).normalize();
+    mini.position.copy(fist).addScaledVector(dir,-.12);mini.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+    const want=new THREE.Vector3(0,-1,0).addScaledVector(dir,dir.y).normalize(),cur=new THREE.Vector3(0,0,1).applyQuaternion(mini.quaternion);
+    mini.rotateY(Math.atan2(new THREE.Vector3().crossVectors(cur,want).dot(dir),cur.dot(want)));
+    if(!mini.parent)hero.add(mini);}
+  else if(mini.parent)hero.remove(mini);
+}
 function applyPose(t){
   const P=POSES[pose];
-  arms.forEach(a=>{const [up,el]=a.side<0?P.l:P.r;
+  if(mini.parent)hero.remove(mini);
+  for(const k of ['sway','turn'])moveExtra[k]*=.85;
+  arms.forEach(a=>{const [up,el]=a.side<0?P.l:P.r;a.shoulder.rotation.y*=.8;
     let wig=0;if(pose==='flex')wig=Math.sin(t*3)*.08;if(pose==='wave'&&a.side>0)wig=Math.sin(t*7)*.35;if(pose==='jubel')wig=Math.sin(t*6+a.side)*.12;
     // Grundpose: Oberarm waagerecht, Unterarm nach oben (Muskelpose). up > 0 hebt den Oberarm auf beiden Seiten.
     const tu=(up+(pose==='flex'?wig:0))*a.side;
@@ -301,14 +370,21 @@ function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSiz
   camera.position.z=w/h<1.1?12.5:9.2;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);resize();
 
-const clock=new THREE.Clock();let lineup=false;const tmp=new THREE.Vector3();
+const clock=new THREE.Clock();let lineup=false,show=true,showNext=0,face='auto',faceNext=1.5;const tmp=new THREE.Vector3();
 function frame(){
   const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
   if(!drag){rotY+=velY;velY*=.93;idle+=dt;if(idle>2.5&&!reduce)rotY+=dt*.25;}
-  hero.rotation.y=rotY;
+  if(show&&t>showNext){const all=['flex','wave','jubel','dance','brush','box'].filter(k=>k!==pose);pose=all[Math.floor(Math.random()*all.length)];showNext=t+3.2+Math.random()*1.4;markPose();}
+  if(MOVES[pose])applyMove(reduce?0:t);else applyPose(reduce?0:t);
+  hero.rotation.y=rotY+moveExtra.turn;hero.rotation.z=moveExtra.sway;
   if(!reduce)waveCape(t);
-  applyPose(reduce?0:t);
-  headG.rotation.z=Math.sin(t*1.3)*.03;
+  headG.rotation.z=Math.sin(t*1.3)*.03-moveExtra.sway*.6;
+  // Gesicht: meist ein Lächeln, ab und zu grinsen oder breit lachen
+  if(face==='auto'&&t>faceNext){const r=Math.random();
+    if(mouthTarget>.2){mouthTarget=.1;faceNext=t+1.8+Math.random()*2.5;}
+    else{mouthTarget=r<.5?.45:1;faceNext=t+.9+Math.random()*1.2;}}
+  if(pose==='jubel'&&face==='auto')mouthTarget=Math.max(mouthTarget,.8);
+  mouthOpen+=(mouthTarget-mouthOpen)*Math.min(1,dt*9);setMouth(mouthOpen,t);
   mons.forEach((m,i)=>{const a=t*.55+i*Math.PI/2;
     if(lineup)tmp.set(-1.6+i*1.07,.75+Math.abs(Math.sin(t*3+i))*.12,1.9);else tmp.set(Math.cos(a)*2.5,1.0+(i%2)*1.3+Math.sin(t*2+i)*.15,Math.sin(a)*1.6);
     m.g.position.lerp(tmp,m.g.position.lengthSq()===0?1:.07);
@@ -321,7 +397,7 @@ function frame(){
 // Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
 if(location.search.includes('render')){
   window.PUTZ={renderer,scene,camera,hero,mons,arms,mat,costume,waveCape,headG,ground,glowDisc,monster,
-    setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);}};
+    setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);},setMouth,MOVES,setMove:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyMove(t);return moveExtra;}};
   document.getElementById('loading').remove();return;
 }
 document.getElementById('loading').remove();
@@ -330,7 +406,10 @@ frame();
 // --- Knöpfe ---
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
 group('c-',['gold','chrom','neon'],costume);
-group('p-',['flex','wave','jubel'],k=>{pose=k;});
+const POSEKEYS=['flex','wave','jubel','dance','brush','box','show'];
+function markPose(){POSEKEYS.forEach(o=>document.getElementById('p-'+o).setAttribute('aria-pressed',show?o==='show':o===pose));}
+POSEKEYS.forEach(k=>document.getElementById('p-'+k).addEventListener('click',()=>{show=k==='show';if(!show)pose=k;else showNext=0;markPose();}));
+group('f-',['auto','smile','grin','laugh'],k=>{face=k;mouthTarget={auto:.1,smile:.1,grin:.45,laugh:1}[k];faceNext=clock.elapsedTime+1.5;});
 group('m-',['fly','row'],k=>{lineup=k==='row';});
 })();
 </script>
