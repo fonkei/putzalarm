@@ -6,6 +6,9 @@ import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import org.json.JSONObject
 
 /** Posen von Super Bürsti, je mit ihren Einzelbildern (aus tools/render_sprites.js). */
 enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
@@ -30,13 +33,32 @@ object Sprites {
     private lateinit var pkg: String
     private val cache = HashMap<String, ImageBitmap>()
 
+    /** Wo der Mund-Ausschnitt (Grinsen/Lachen) auf jedem Bild von Super Bürsti liegt, in Bildpunkten. */
+    private var mouthAt: Map<String, IntOffset> = emptyMap()
+    var mouthSize = IntSize(84, 64)
+        private set
+
     fun init(resources: Resources, packageName: String) {
         res = resources
         pkg = packageName
+        runCatching {
+            val id = resources.getIdentifier("hero_mouths", "raw", packageName)
+            val o = JSONObject(resources.openRawResource(id).bufferedReader().readText())
+            mouthSize = IntSize(o.getInt("w"), o.getInt("h"))
+            val at = o.getJSONObject("at")
+            mouthAt = at.keys().asSequence().associateWith { k -> at.getJSONArray(k).let { IntOffset(it.getInt(0), it.getInt(1)) } }
+        }
+    }
+
+    /** Mund-Ausschnitt für [mouth] 1 = Grinsen, 2 = Lachen, mit Position im Bild (450 × 600). */
+    fun heroMouth(pose: HeroPose, frame: Int, mouth: Int): Pair<ImageBitmap, IntOffset>? {
+        val base = "hero_${pose.key}_${frame % pose.frames}"
+        val at = mouthAt[base] ?: return null
+        return get(base + if (mouth >= 2) "_laugh" else "_grin") to at
     }
 
     fun preload() {
-        for (p in HeroPose.entries) for (i in 0 until p.frames) hero(p, i)
+        for (p in HeroPose.entries) for (i in 0 until p.frames) { hero(p, i); heroMouth(p, i, 1); heroMouth(p, i, 2) }
         for (k in GermKind.entries) for (c in palette.indices) for (f in 0..1) get(germName(k, c, f))
     }
 

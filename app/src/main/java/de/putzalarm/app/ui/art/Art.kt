@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.unit.IntSize
 import de.putzalarm.app.ui.theme.M
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import androidx.compose.ui.unit.IntOffset
 
 private fun round(w: Float) = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round)
 
@@ -49,14 +51,26 @@ fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> 
     var current by remember { mutableStateOf(pose ?: HeroPose.WAVE) }
     var frame by remember { mutableIntStateOf(0) }
     var poke by remember { mutableIntStateOf(0) }
+    // 0 = Lächeln, 1 = Grinsen, 2 = breites Lachen mit glänzenden Zähnen
+    var mouth by remember { mutableIntStateOf(0) }
+    var clockMs by remember { mutableStateOf(0L) }
     LaunchedEffect(pose, poke) {
         // Nach einem Antippen springt er sofort in eine neue Bewegung
         current = pose ?: if (poke == 0) HeroPose.WAVE else HeroPose.Show.filter { it != current }.random()
         var start = 0L
         var next = 3200L
+        var t0 = 0L
+        if (poke > 0) mouth = 2
         while (true) {
             withFrameMillis { now ->
                 if (start == 0L) start = now
+                if (t0 == 0L) t0 = now + if (poke > 0) 1500L else 1800L
+                clockMs = now
+                // Meist ein Lächeln, ab und zu grinsen oder breit lachen; beim Jubeln immer lachen
+                if (now > t0) {
+                    mouth = if (mouth > 0) 0 else if (Random.nextBoolean()) 1 else 2
+                    t0 = now + if (mouth > 0) Random.nextLong(900L, 2000L) else Random.nextLong(1800L, 4200L)
+                }
                 var elapsed = now - start
                 if (pose == null && elapsed > next) {
                     current = HeroPose.Show.filter { it != current }.random()
@@ -73,6 +87,22 @@ fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> 
         val img = Sprites.hero(current, frame)
         drawOval(Color.Black, Offset(size.width * 0.3f, size.height * 0.905f), Size(size.width * 0.42f, size.height * 0.05f), alpha = 0.18f)
         drawImage(img, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), filterQuality = FilterQuality.Medium)
+        val m = if (current == HeroPose.JUBEL) 2 else mouth
+        if (m > 0) Sprites.heroMouth(current, frame, m)?.let { (crop, at) ->
+            val sx = size.width / img.width
+            val sy = size.height / img.height
+            val ms = Sprites.mouthSize
+            val dst = IntOffset((at.x * sx).roundToInt(), (at.y * sy).roundToInt())
+            drawImage(crop, dstOffset = dst, dstSize = IntSize((ms.width * sx).roundToInt(), (ms.height * sy).roundToInt()), filterQuality = FilterQuality.Medium)
+            if (m == 2) {
+                // Blitzen an den Zähnen
+                val k = sin(clockMs / 160.0).toFloat().coerceAtLeast(0f)
+                if (k > 0.05f) {
+                    val c = Offset(dst.x + ms.width * sx * 0.72f, dst.y + ms.height * sy * 0.5f)
+                    rotate(clockMs / 6f % 360f, c) { drawSparkle(c, size.width * 0.035f * k, Color.White) }
+                }
+            }
+        }
     }
 }
 

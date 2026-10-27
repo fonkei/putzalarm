@@ -36,68 +36,43 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
     hero.rotation.y = -0.3;
     const cam = new T.PerspectiveCamera(32, 3 / 4, 0.1, 100);
     cam.position.set(0, 2.05, 8.1); cam.lookAt(0, 1.98, 0);
+    // Jedes Bild einmal mit Lächeln (ganzes Bild) und dazu nur der Mundausschnitt mit Grinsen und Lachen.
+    // Die App legt den Ausschnitt an der gespeicherten Stelle über das Bild.
+    const MW = 84, MH = 64, mouths = {};
+    const crop = (cx, cy) => {
+      const c = document.createElement('canvas'); c.width = MW; c.height = MH;
+      c.getContext('2d').drawImage(renderer.domElement, cx - MW / 2, cy - MH / 2, MW, MH, 0, 0, MW, MH);
+      return c.toDataURL('image/png');
+    };
+    const shoot = (name, extra) => {
+      hero.rotation.y = -0.3 + (extra.turn || 0); hero.rotation.z = extra.sway || 0; P.headG.rotation.z = -(extra.sway || 0) * 0.6;
+      P.setMouth(0.1, 0); res[name] = grab(cam, 450, 600);
+      hero.updateMatrixWorld(true);
+      const m = P.headG.localToWorld(new T.Vector3(0, -0.23, 0.16)).project(cam);
+      const cx = Math.round((m.x + 1) / 2 * 450), cy = Math.round((1 - m.y) / 2 * 600);
+      mouths[name] = [cx - MW / 2, cy - MH / 2];
+      P.setMouth(0.45, 0); renderer.render(scene, cam); res[name + '_grin'] = crop(cx, cy);
+      P.setMouth(1, 0); renderer.render(scene, cam); res[name + '_laugh'] = crop(cx, cy);
+      P.setMouth(0.1, 0);
+    };
     const frames = {
       flex: [Math.PI / 6, -Math.PI / 6],
       wave: [0, 1, 2, 3].map(k => k * Math.PI / 2 / 7),
       jubel: [0, 1, 2, 3].map(k => k * Math.PI / 24),
     };
     for (const [pose, ts] of Object.entries(frames)) ts.forEach((t, i) => {
-      P.setPose(pose, t); P.waveCape(t * 2); P.headG.rotation.z = 0;
-      res[`hero_${pose}_${i}`] = grab(cam, 450, 600);
+      P.setPose(pose, t); P.waveCape(t * 2);
+      shoot(`hero_${pose}_${i}`, {});
     });
-
-    // Weitere Bewegungen, Bild für Bild direkt gestellt. Pro Arm: sy = nach vorn schwenken,
-    // uz = Oberarm heben, ez = Unterarm nach innen beugen (alles gespiegelt für links/rechts).
-    const setArm = (a, { sy = 0, uz = 0, ez = 0 }) => {
-      a.shoulder.rotation.y = -a.side * sy; a.upper.rotation.z = a.side * uz; a.elbow.rotation.z = a.side * ez;
-    };
-    // Kleine Zahnbürste für die Putz-Bewegung, steckt in der rechten Faust
-    const mini = new T.Group();
-    const mh = new T.Mesh(new T.CapsuleGeometry(0.03, 0.42, 6, 12), P.mat.boot); mh.position.y = 0.2; mini.add(mh);
-    const mhead = new T.Mesh(new T.CapsuleGeometry(0.045, 0.08, 6, 12), P.mat.head); mhead.position.set(0, 0.46, 0.02); mini.add(mhead);
-    for (let k = 0; k < 3; k++) { const br = new T.Mesh(new T.CapsuleGeometry(0.018, 0.05, 4, 8), P.mat.bristleA); br.rotation.x = Math.PI / 2; br.position.set(0, 0.43 + k * 0.035, 0.08); mini.add(br); }
-    mini.traverse(o => { if (o.isMesh) o.castShadow = true; });
-        const R = P.arms.find(a => a.side > 0), L = P.arms.find(a => a.side < 0);
-    const moves = {
-      // Tanzen: ein Arm hoch, einer runter, Hüftschwung und kleine Hüpfer
-      dance: [
-        { L: { uz: -0.9, ez: -1.2 }, R: { uz: 1.1, ez: -0.4 }, sway: 0.1, hop: 0.06, turn: 0.15 },
-        { L: { uz: -0.4, ez: -0.6 }, R: { uz: 0.4, ez: 0.6 }, sway: 0, hop: 0.14, turn: 0 },
-        { L: { uz: 1.1, ez: -0.4 }, R: { uz: -0.9, ez: -1.2 }, sway: -0.1, hop: 0.06, turn: -0.15 },
-        { L: { uz: 0.4, ez: 0.6 }, R: { uz: -0.4, ez: -0.6 }, sway: 0, hop: 0.14, turn: 0 },
-      ],
-      // Putzen: rechte Faust mit Mini-Bürste vor dem Mund, hin und her
-      brush: [-0.14, 0, 0.14, 0].map(d => ({ L: { uz: -1.3, ez: -1.45 }, R: { sy: 1.35 + d, uz: 0.55, ez: -0.7 }, brush: true, turn: 0.1 })),
-      // Boxen: Deckung, rechts schlagen, Deckung, links schlagen
-      box: [
-        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: 0 },
-        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.5, uz: 0.15, ez: -1.45 }, turn: 0.25 },
-        { L: { sy: 1.1, uz: -0.35, ez: 0.35 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: 0, hop: 0.05 },
-        { L: { sy: 1.5, uz: 0.15, ez: -1.45 }, R: { sy: 1.1, uz: -0.35, ez: 0.35 }, turn: -0.25 },
-      ],
-    };
-    for (const [name, list] of Object.entries(moves)) list.forEach((f, i) => {
-      setArm(L, f.L); setArm(R, f.R);
-      hero.position.y = f.hop || 0; hero.rotation.z = f.sway || 0; hero.rotation.y = -0.3 + (f.turn || 0);
-      hero.remove(mini);
-      if (f.brush) {
-        // Bürstenkopf am Mund, Griff durch die Faust
-        hero.updateMatrixWorld(true);
-        const fist = hero.worldToLocal(R.elbow.localToWorld(new T.Vector3(0, 0.47, 0)));
-        const dir = new T.Vector3(0.02, 3.0, 0.24).sub(fist).normalize();
-        mini.position.copy(fist).addScaledVector(dir, -0.12);
-        mini.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), dir);
-        // Um den Griff drehen, bis die Borsten (lokal +z) nach unten zeigen
-        const want = new T.Vector3(0, -1, 0).addScaledVector(dir, dir.y).normalize();
-        const cur = new T.Vector3(0, 0, 1).applyQuaternion(mini.quaternion);
-        mini.rotateY(Math.atan2(new T.Vector3().crossVectors(cur, want).dot(dir), cur.dot(want)));
-        hero.add(mini);
-      }
-      P.waveCape(i * 0.8); P.headG.rotation.z = -(f.sway || 0) * 0.6;
-      res[`hero_${name}_${i}`] = grab(cam, 450, 600);
+    // Tanzen, Putzen, Boxen: Schlüsselbilder aus dem Modell (MOVES)
+    for (const [name, mv] of Object.entries(P.MOVES)) mv.f.forEach((_, i) => {
+      const extra = P.setMove(name, i * mv.ms / 1000);
+      P.waveCape(i * 0.8);
+      shoot(`hero_${name}_${i}`, extra);
     });
-    hero.remove(mini);
+    P.setPose('flex', 0);
     hero.position.y = 0; hero.rotation.z = 0;
+    res.__mouths = JSON.stringify({ w: MW, h: MH, at: mouths });
 
     // Monster: genau das 120er-Raster der alten Zeichnung (−0,6 … 0,6), zwei Bilder fürs Zappeln
     hero.visible = false;
@@ -115,6 +90,8 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
     return res;
   }, { PALETTE, KINDS });
 
+  fs.writeFileSync(path.join(root, 'app/src/main/res/raw/hero_mouths.json'), shots.__mouths);
+  delete shots.__mouths;
   for (const [name, url] of Object.entries(shots)) fs.writeFileSync(path.join(out, name + '.png'), Buffer.from(url.split(',')[1], 'base64'));
   console.log(Object.keys(shots).length, 'Bilder in', out);
   await browser.close();
