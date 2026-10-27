@@ -87,6 +87,10 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
         const dir = new T.Vector3(0.02, 3.0, 0.24).sub(fist).normalize();
         mini.position.copy(fist).addScaledVector(dir, -0.12);
         mini.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), dir);
+        // Um den Griff drehen, bis die Borsten (lokal +z) nach unten zeigen
+        const want = new T.Vector3(0, -1, 0).addScaledVector(dir, dir.y).normalize();
+        const cur = new T.Vector3(0, 0, 1).applyQuaternion(mini.quaternion);
+        mini.rotateY(Math.atan2(new T.Vector3().crossVectors(cur, want).dot(dir), cur.dot(want)));
         hero.add(mini);
       }
       P.waveCape(i * 0.8); P.headG.rotation.z = -(f.sway || 0) * 0.6;

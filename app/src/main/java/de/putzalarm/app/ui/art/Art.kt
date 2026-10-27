@@ -1,6 +1,8 @@
 package de.putzalarm.app.ui.art
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,11 +45,13 @@ private fun round(w: Float) = Stroke(width = w, cap = StrokeCap.Round, join = St
  * Sekunden zufällig zwischen Winken, Tanzen, Putzen, Boxen, Muskeln zeigen und Jubeln.
  */
 @Composable
-fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null) {
+fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> Unit)? = null) {
     var current by remember { mutableStateOf(pose ?: HeroPose.WAVE) }
     var frame by remember { mutableIntStateOf(0) }
-    LaunchedEffect(pose) {
-        current = pose ?: HeroPose.WAVE
+    var poke by remember { mutableIntStateOf(0) }
+    LaunchedEffect(pose, poke) {
+        // Nach einem Antippen springt er sofort in eine neue Bewegung
+        current = pose ?: if (poke == 0) HeroPose.WAVE else HeroPose.Show.filter { it != current }.random()
         var start = 0L
         var next = 3200L
         while (true) {
@@ -64,7 +68,8 @@ fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null) {
             }
         }
     }
-    Canvas(modifier.aspectRatio(3f / 4f)) {
+    val tap = if (onTap == null) Modifier else Modifier.clickable(remember { MutableInteractionSource() }, null) { poke++; onTap() }
+    Canvas(modifier.aspectRatio(3f / 4f).then(tap)) {
         val img = Sprites.hero(current, frame)
         drawOval(Color.Black, Offset(size.width * 0.3f, size.height * 0.905f), Size(size.width * 0.42f, size.height * 0.05f), alpha = 0.18f)
         drawImage(img, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), filterQuality = FilterQuality.Medium)

@@ -50,7 +50,7 @@ fun HomeScreen(
     BackHandler(onBack = onSwitch)
     val evening = LocalTime.now().hour >= 15
     DottedBackground {
-        Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).fillMaxHeight(0.86f))
+        Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).fillMaxHeight(0.86f), onTap = { greet(Greetings.poke(child)) })
         Row(Modifier.align(Alignment.TopStart).padding(3.5.u), verticalAlignment = Alignment.CenterVertically) {
             ComicButton(onSwitch, bg = Color.White, radius = 10.u, border = 0.45.u, shadow = 0.6.u, padding = 0.4.u) {
                 ChildAvatar(child, photoDir, 6.u)
@@ -136,12 +136,38 @@ private object Greetings {
         }
     }
 
-    fun next(c: Child): String {
-        val pick = all(c).filter { it !in recent }.ifEmpty { all(c) }.random()
+    /** Sprüche, wenn das Kind Super Bürsti antippt. */
+    private fun pokes(c: Child): List<String> {
+        val n = c.name
+        return listOf(
+            "Hihi, das kitzelt!",
+            "Huch! Du hast mich angetippt, $n!",
+            "Ich bin Super Bürsti, der stärkste Zahnputz-Held der Welt!",
+            "Willst du meine Muskeln sehen? Oh, ich bin ja eine Zahnbürste. Egal!",
+            "Weißt du was? Monster mögen keinen Zahnpasta-Schaum!",
+            "Tipp auf den großen Knopf, dann jagen wir die Monster!",
+            "Meine Borsten sind frisch gekämmt. Sehe ich gut aus?",
+            "Zwei Minuten putzen, und deine Zähne blitzen wie Sterne!",
+            "Hey, nicht so doll! Ich bin doch nur aus Plastik. Hihi!",
+            "Die Monster verstecken sich gern hinten bei den Backenzähnen. Pssst!",
+            "Ich kann tanzen, boxen und putzen. Und du?",
+            "$n, du bist ein super Putz-Held!",
+            "Jeden Morgen und jeden Abend putzen. Das ist unser Geheimplan!",
+            "Bereit, $n? Ich bin so was von bereit!",
+        )
+    }
+
+    fun poke(c: Child): String = pickFresh(pokes(c))
+
+    fun next(c: Child): String = pickFresh(all(c))
+
+    private fun pickFresh(list: List<String>): String {
+        val pick = list.filter { it !in recent }.ifEmpty { list }.random()
         recent.addLast(pick)
         while (recent.size > 6) recent.removeFirst()
         return pick
     }
+
 }
 
 @Composable
