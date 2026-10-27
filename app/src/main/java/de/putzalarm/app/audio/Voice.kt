@@ -86,6 +86,9 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         tts.speak(text, if (rendering) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "say")
     }
 
+    /** Spricht gerade etwas (z. B. der Schluss-Spruch)? */
+    val speaking: Boolean get() = ready && tts.isSpeaking
+
     fun stop() {
         if (ready) tts.stop()
     }

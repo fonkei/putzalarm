@@ -143,11 +143,11 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
         // Manche fliegen auf die Kamera zu oder nach hinten weg, statt nur zur Seite
         val r = Random.nextFloat()
         val vz = when {
-            r < 0.3f -> 1.0f + Random.nextFloat() * 0.5f
-            r < 0.42f -> -(0.7f + Random.nextFloat() * 0.4f)
+            r < 0.07f -> 1.0f + Random.nextFloat() * 0.5f
+            r < 0.17f -> -(0.7f + Random.nextFloat() * 0.4f)
             else -> 0f
         }
-        val speed = (26f + Random.nextFloat() * 22f) * u * if (vz != 0f) 0.35f else 1f
+        val speed = (26f + Random.nextFloat() * 22f) * u * when { vz > 0f -> 0.6f; vz < 0f -> 0.35f; else -> 1f }
         val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random() else null
         germs += FlyingGerm(
             x = mouth.x + (Random.nextFloat() - 0.5f) * 3f * u,

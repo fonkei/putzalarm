@@ -136,7 +136,7 @@ private object Greetings {
             add("Ich habe extra meine Muskeln trainiert. Zeig mir deine Putzkraft, $n!")
             add("Hallo $n! Bist du bereit? Ich bin bereit!")
             add("Juhu, $n ist da! Heute verjagen wir ganz viele Monster, oder?")
-            add("Psst, $n! Hinter deinen Backenzähnen verstecken sich Monster. Wir finden sie alle!")
+            add("Ich verrate dir ein Geheimnis, $n: Hinter deinen Backenzähnen verstecken sich Monster. Wir finden sie alle!")
             add("Hallo Putz-Held $n! Schnapp dir deine Bürste, und los!")
             add("Tschakka! $n und Super Bürsti, das stärkste Team der Welt!")
             add("Hallo $n! Ich habe schon Tanzschritte geübt. Und du die Putzbewegung?")
@@ -164,7 +164,7 @@ private object Greetings {
             "Meine Borsten sind frisch gekämmt. Sehe ich gut aus?",
             "Zwei Minuten putzen, und deine Zähne blitzen wie Sterne!",
             "Hey, nicht so doll! Ich bin doch nur aus Plastik. Hihi!",
-            "Die Monster verstecken sich gern hinten bei den Backenzähnen. Pssst!",
+            "Die Monster verstecken sich gern hinten bei den Backenzähnen. Das bleibt aber unter uns!",
             "Ich kann tanzen, boxen und putzen. Und du?",
             "$n, du bist ein super Putz-Held!",
             "Jeden Morgen und jeden Abend putzen. Das ist unser Geheimplan!",

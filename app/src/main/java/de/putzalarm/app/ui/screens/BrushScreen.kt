@@ -160,6 +160,10 @@ fun BrushScreen(
     LaunchedEffect(game.phase) {
         if (game.phase == Phase.DONE) {
             delay(2600)
+            // Den Schluss-Spruch ausreden lassen, bevor das Ergebnis kommt (höchstens 8 Sekunden warten)
+            var waited = 0
+            while (voice.speaking && waited < 8000) { delay(100); waited += 100 }
+            delay(300)
             finished(game.result)
         }
     }
