@@ -72,6 +72,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 onSensitivity = store::updateSensitivity,
                 showMeter = store.showMeter,
                 onShowMeter = store::updateShowMeter,
+                music = store.music,
+                onMusic = store::updateMusic,
             )
             is Screen.Gate -> ParentGateScreen(onPass = { screen = s.then }, onCancel = { screen = Screen.Picker() })
             is Screen.Edit -> EditChildScreen(
@@ -97,6 +99,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     cameraAllowed = s.camera,
                     sensitivity = store.sensitivity,
                     showMeter = store.showMeter,
+                    music = store.music,
                     voice = voice,
                     sfx = sfx,
                     onFinished = { r ->

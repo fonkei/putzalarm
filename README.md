@@ -31,4 +31,6 @@ Super Bürsti und die Monster sind fertig gerenderte 3D-Bilder aus `design/super
 (in `res/drawable-nodpi`). Neu erzeugen: `node tools/render_sprites.js <pfad/zu/three.min.js>` mit
 three@0.149.0 (z. B. aus `npm pack three@0.149.0`) und Playwright.
 
+Die Putzmusik ist selbst komponiert: `python3 tools/gen_music.py` (numpy, ffmpeg) erzeugt `res/raw/putzmusik.ogg`.
+
 Schriften: Lilita One und Nunito (SIL Open Font License, siehe `licenses/`).

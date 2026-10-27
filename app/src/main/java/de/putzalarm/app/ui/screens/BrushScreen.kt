@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import android.media.MediaPlayer
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import de.putzalarm.app.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
@@ -87,6 +90,7 @@ fun BrushScreen(
     cameraAllowed: Boolean,
     sensitivity: de.putzalarm.app.data.Sensitivity,
     showMeter: Boolean,
+    music: Boolean,
     voice: Voice,
     sfx: Sfx,
     onFinished: (SessionResult) -> Unit,
@@ -117,6 +121,19 @@ fun BrushScreen(
         })
     }
     var paused by remember { mutableStateOf(false) }
+    // Lustige Putzmusik, leise unter Ansagen und Monster-Rufen; läuft nur, solange geputzt wird
+    val context = LocalContext.current
+    val player = remember {
+        if (!music) null else MediaPlayer.create(context, R.raw.putzmusik)?.apply {
+            isLooping = true
+            setVolume(0.3f, 0.3f)
+        }
+    }
+    DisposableEffect(player) { onDispose { player?.release() } }
+    LaunchedEffect(game.phase, paused) {
+        val p = player ?: return@LaunchedEffect
+        if (game.phase == Phase.RUN && !paused) p.start() else if (p.isPlaying) p.pause()
+    }
     var viewSize by remember { mutableStateOf(Size.Zero) }
     val track = remember { Tracking() }
     val unitPx = with(LocalDensity.current) { LocalU.current.toPx() }

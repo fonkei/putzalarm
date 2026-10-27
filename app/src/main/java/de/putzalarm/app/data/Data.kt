@@ -113,6 +113,15 @@ class ProfileStore(context: Context) {
     var showMeter by mutableStateOf(prefs.getBoolean("messanzeige", false))
         private set
 
+    /** Lustige Musik beim Putzen. */
+    var music by mutableStateOf(prefs.getBoolean("musik", true))
+        private set
+
+    fun updateMusic(on: Boolean) {
+        music = on
+        prefs.edit().putBoolean("musik", on).apply()
+    }
+
     fun updateSensitivity(s: Sensitivity) {
         sensitivity = s
         prefs.edit().putInt("empfindlichkeit", s.ordinal).apply()
