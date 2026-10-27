@@ -1,0 +1,277 @@
+<title>Super Bürsti Modell</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&display=swap">
+<style>
+/* Layout: eine Bühne in voller Breite mit dem drehbaren 3D-Modell, darunter Knöpfe für Kostüm und Pose. Bewusst nur ein (dunkler) Bühnen-Look. */
+:root{
+  --stage:#170c2e; --stage-2:#2c1856; --panel:#221242; --line:#3d2670; --fg:#f6f0ff; --muted:#c3b4e6;
+  --yellow:#ffd23f; --pink:#ff3d7f; --ink:#24123a;
+  --f-display:'Lilita One','Arial Rounded MT Bold',system-ui,sans-serif;
+  --f-body:'Nunito','Segoe UI',system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--stage);color:var(--fg);font-family:var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1100px;margin:0 auto;padding-block:24px 40px;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--f-display);font-weight:400;margin:0;font-size:clamp(2.2rem,6vw,3.8rem);line-height:1;color:var(--yellow);text-shadow:0 4px 0 var(--pink)}
+.lead{margin:0;color:var(--muted);font-weight:700;max-width:64ch}
+.stage{position:relative;width:100%;aspect-ratio:16/10;max-height:72vh;border-radius:22px;overflow:hidden;border:2px solid var(--line);
+  background:radial-gradient(70% 70% at 50% 35%,var(--stage-2),var(--stage) 75%);touch-action:none;cursor:grab}
+.stage:active{cursor:grabbing}
+canvas{display:block;width:100%;height:100%}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(0,0,0,.4);color:var(--fg);font-weight:900;font-size:.85rem;padding:6px 14px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-weight:900}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar span{font-weight:900;color:var(--muted);margin-right:4px}
+button{font:inherit;font-family:var(--f-display);font-size:1.05rem;color:var(--fg);background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--yellow);color:var(--ink);border-color:var(--yellow)}
+button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.note{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px 18px;color:var(--muted);font-weight:700;max-width:76ch;margin:0}
+.note b{color:var(--fg)}
+</style>
+
+<main class="wrap">
+  <h1>Super Bürsti in echtem 3D</h1>
+  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
+  <div class="stage" id="stage"><div class="loading" id="loading">Super Bürsti wird aufgebaut …</div><span class="hint">Ziehen zum Drehen</span></div>
+  <div class="bar" role="group" aria-label="Kostüm">
+    <span>Kostüm</span>
+    <button type="button" id="c-gold" aria-pressed="true">Goldglanz</button>
+    <button type="button" id="c-chrom" aria-pressed="false">Chrom</button>
+    <button type="button" id="c-neon" aria-pressed="false">Neon</button>
+  </div>
+  <div class="bar" role="group" aria-label="Pose">
+    <span>Pose</span>
+    <button type="button" id="p-flex" aria-pressed="true">Muskeln</button>
+    <button type="button" id="p-wave" aria-pressed="false">Winken</button>
+    <button type="button" id="p-jubel" aria-pressed="false">Jubeln</button>
+  </div>
+  <p class="note"><b>Für die App:</b> In der App würde Super Bürsti aus diesem Modell als fertig gerenderte Bilder und kurze Animationen (Winken, Jubeln, auf Monster zeigen) eingebaut. So sieht er genauso plastisch aus, und die App bleibt auf dem Tablet schnell.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script>
+(function(){
+const stage=document.getElementById('stage');
+if(!window.THREE){document.getElementById('loading').textContent='3D konnte nicht geladen werden.';return;}
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+stage.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(32,16/10,0.1,100);
+camera.position.set(0,1.75,9.2);camera.lookAt(0,1.55,0);
+
+// Licht: weiches Umgebungslicht, Hauptlicht oben links mit Schatten, farbige Kantenlichter
+scene.add(new THREE.HemisphereLight(0xfff4e0,0x3a2470,0.75));
+const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(-4,7,6);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:1,far:20});key.shadow.bias=-0.0005;scene.add(key);
+const rimL=new THREE.DirectionalLight(0xff4f8b,1.1);rimL.position.set(-6,3,-5);scene.add(rimL);
+const rimR=new THREE.DirectionalLight(0x58c8ff,1.2);rimR.position.set(6,4,-4);scene.add(rimR);
+// Umgebungs-Reflexion aus einem kleinen Farbverlauf, damit Glanz und Chrom etwas spiegeln
+const pm=new THREE.PMREMGenerator(renderer);
+const envScene=new THREE.Scene();
+const envGeo=new THREE.SphereGeometry(10,32,16);
+const envCols=[];const c1=new THREE.Color(0xfff2d0),c2=new THREE.Color(0x2c1856),c3=new THREE.Color(0xff6aa0);
+for(let i=0;i<envGeo.attributes.position.count;i++){const y=envGeo.attributes.position.getY(i)/10;const c=y>0?c2.clone().lerp(c1,y):c2.clone().lerp(c3,-y*.6);envCols.push(c.r,c.g,c.b);}
+envGeo.setAttribute('color',new THREE.Float32BufferAttribute(envCols,3));
+envScene.add(new THREE.Mesh(envGeo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
+scene.environment=pm.fromScene(envScene,0.04).texture;
+
+// Boden mit Schatten
+const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,64),new THREE.ShadowMaterial({opacity:.45}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const glowDisc=new THREE.Mesh(new THREE.CircleGeometry(2.2,64),new THREE.MeshBasicMaterial({color:0x5b3aa8,transparent:true,opacity:.35}));
+glowDisc.rotation.x=-Math.PI/2;glowDisc.position.y=0.002;scene.add(glowDisc);
+
+// Materialien
+const mat={
+  suit:new THREE.MeshPhysicalMaterial({color:0x2f6bff,metalness:.25,roughness:.28,clearcoat:1,clearcoatRoughness:.12}),
+  trim:new THREE.MeshPhysicalMaterial({color:0xffc928,metalness:.85,roughness:.22,clearcoat:.6}),
+  cape:new THREE.MeshPhysicalMaterial({color:0xff3d7f,metalness:.05,roughness:.45,sheen:1,sheenColor:new THREE.Color(0xffb3cc),side:THREE.DoubleSide}),
+  head:new THREE.MeshPhysicalMaterial({color:0x3ee0b0,metalness:0,roughness:.22,clearcoat:1,clearcoatRoughness:.08}),
+  bristleA:new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.3,clearcoat:.8,transmission:0}),
+  bristleB:new THREE.MeshPhysicalMaterial({color:0xbfe4ff,roughness:.3,clearcoat:.8}),
+  mask:new THREE.MeshPhysicalMaterial({color:0x221436,metalness:.2,roughness:.25,clearcoat:1}),
+  eye:new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.15,clearcoat:1}),
+  pupil:new THREE.MeshPhysicalMaterial({color:0x140818,roughness:.1,clearcoat:1}),
+  mouth:new THREE.MeshStandardMaterial({color:0x2a0614,roughness:.5}),
+  tooth:new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3}),
+  glove:new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.35,clearcoat:.6}),
+  boot:new THREE.MeshPhysicalMaterial({color:0xff3d7f,metalness:.1,roughness:.25,clearcoat:1}),
+  cheek:new THREE.MeshStandardMaterial({color:0xff6b9a,transparent:true,opacity:.55,roughness:.6}),
+  glow:new THREE.MeshBasicMaterial({color:0x58f0ff}),
+};
+const shadowAll=o=>o.traverse(m=>{if(m.isMesh){m.castShadow=true;m.receiveShadow=true;}});
+
+function roundedRect(w,h,r){const s=new THREE.Shape(),x=-w/2,y=-h/2;
+  s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);return s;}
+function slab(shape,depth,bevel,material){const g=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:6,curveSegments:24});
+  g.center();return new THREE.Mesh(g,material);}
+const cap=(r,l,m)=>new THREE.Mesh(new THREE.CapsuleGeometry(r,l,8,20),m);
+const ball=(r,m)=>new THREE.Mesh(new THREE.SphereGeometry(r,40,28),m);
+
+const hero=new THREE.Group();scene.add(hero);
+
+// --- Beine und Stiefel ---
+for(const x of [-.2,.2]){
+  const leg=cap(.13,.55,mat.suit);leg.position.set(x,.62,0);hero.add(leg);
+  const boot=slab(roundedRect(.34,.22,.1),.36,.05,mat.boot);boot.position.set(x*1.08,.16,.05);hero.add(boot);
+}
+// --- Oberkörper in V-Form ---
+const torsoShape=new THREE.Shape();
+torsoShape.moveTo(-.62,1.0);torsoShape.quadraticCurveTo(0,1.12,.62,1.0);torsoShape.quadraticCurveTo(.72,.92,.66,.75);
+torsoShape.lineTo(.36,-.55);torsoShape.quadraticCurveTo(0,-.66,-.36,-.55);torsoShape.lineTo(-.66,.75);torsoShape.quadraticCurveTo(-.72,.92,-.62,1.0);
+const torso=slab(torsoShape,.42,.12,mat.suit);torso.position.set(0,1.62,0);hero.add(torso);
+// Brustmuskeln
+for(const x of [-.25,.25]){const pec=ball(.27,mat.suit);pec.scale.set(1.15,.62,.5);pec.position.set(x,2.12,.24);hero.add(pec);}
+// Sixpack
+for(let r=0;r<3;r++)for(const x of [-.1,.1]){const ab=slab(roundedRect(.16,.13,.05),.04,.03,mat.suit);ab.position.set(x,1.72-r*.18,.29);hero.add(ab);}
+// Wappen mit B
+const shield=new THREE.Shape();shield.moveTo(0,.24);shield.lineTo(.22,.16);shield.quadraticCurveTo(.22,-.1,0,-.24);shield.quadraticCurveTo(-.22,-.1,-.22,.16);shield.lineTo(0,.24);
+const emb=slab(shield,.05,.03,mat.trim);emb.position.set(0,2.08,.42);hero.add(emb);
+const bc=document.createElement('canvas');bc.width=bc.height=128;const bx=bc.getContext('2d');
+bx.font='900 104px "Arial Black", Arial, sans-serif';bx.textAlign='center';bx.textBaseline='middle';bx.lineWidth=10;bx.strokeStyle='#24123a';bx.strokeText('B',64,70);bx.fillStyle='#2f6bff';bx.fillText('B',64,70);
+const bTex=new THREE.CanvasTexture(bc);bTex.encoding=THREE.sRGBEncoding;
+const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.position.set(0,2.09,.475);hero.add(bPlane);
+// Gürtel
+const belt=new THREE.Mesh(new THREE.TorusGeometry(.38,.07,16,48),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(1,.62,1);belt.position.y=1.15;hero.add(belt);
+const buckle=slab(roundedRect(.22,.2,.05),.06,.03,mat.trim);buckle.position.set(0,1.15,.27);hero.add(buckle);
+// Neonlinien (nur im Neon-Kostüm sichtbar)
+const neon=new THREE.Group();hero.add(neon);
+const tube=(pts)=>new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),40,.018,8,false),mat.glow);
+neon.add(tube([[-.5,2.35,.25],[-.2,2.0,.34],[0,1.95,.36],[.2,2.0,.34],[.5,2.35,.25]]));
+neon.add(tube([[-.25,1.3,.3],[-.3,1.7,.32],[-.35,2.0,.3]]));neon.add(tube([[.25,1.3,.3],[.3,1.7,.32],[.35,2.0,.3]]));
+
+// --- Arme (mit Gelenken für Posen) ---
+function makeArm(side){
+  const shoulder=new THREE.Group();shoulder.position.set(side*.72,2.42,0);hero.add(shoulder);
+  shoulder.add(ball(.24,mat.suit));
+  const upper=new THREE.Group();shoulder.add(upper);
+  const ua=cap(.13,.42,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.33;upper.add(ua);
+  const bicep=ball(.2,mat.suit);bicep.scale.set(1.2,1,.95);bicep.position.set(side*.34,.1,0);upper.add(bicep);
+  const elbow=new THREE.Group();elbow.position.x=side*.66;upper.add(elbow);
+  elbow.add(ball(.13,mat.suit));
+  const fa=cap(.115,.38,mat.suit);fa.position.y=.26;elbow.add(fa);
+  const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.1,24),mat.trim);cuff.position.y=.5;elbow.add(cuff);
+  const fist=ball(.19,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=.68;elbow.add(fist);
+  return {shoulder,upper,elbow,side};
+}
+const arms=[makeArm(-1),makeArm(1)];
+
+// --- Hals und Kopf (Bürstenkopf) ---
+const neck=new THREE.Mesh(new THREE.CylinderGeometry(.14,.16,.22,24),new THREE.MeshPhysicalMaterial({color:0x2bb48c,roughness:.3,clearcoat:.8}));neck.position.y=2.72;hero.add(neck);
+const headG=new THREE.Group();headG.position.y=3.32;hero.add(headG);
+const head=slab(roundedRect(.68,1.0,.24),.42,.1,mat.head);headG.add(head);
+// Borsten als Frisur
+const bristles=new THREE.Group();headG.add(bristles);
+for(let i=0;i<5;i++)for(let j=0;j<2;j++){const h=.3+((i%2)?.08:0)-Math.abs(i-2)*.035;
+  const b=cap(.05,h,(i+j)%2?mat.bristleB:mat.bristleA);b.position.set(-.24+i*.12,.52+h/2,-.08+j*.17);b.rotation.z=(i-2)*-.06;b.rotation.x=(j-.5)*.12;bristles.add(b);}
+// Maske
+const maskShape=new THREE.Shape();maskShape.moveTo(-.4,.12);maskShape.quadraticCurveTo(0,.2,.4,.12);maskShape.lineTo(.4,-.1);maskShape.quadraticCurveTo(.18,-.18,0,-.07);maskShape.quadraticCurveTo(-.18,-.18,-.4,-.1);maskShape.lineTo(-.4,.12);
+const mask=slab(maskShape,.04,.02,mat.mask);mask.position.set(0,.08,.3);mask.scale.set(1,1,1);headG.add(mask);
+const tail=new THREE.Mesh(new THREE.ConeGeometry(.07,.32,12),mat.mask);tail.rotation.z=-Math.PI/2.3;tail.position.set(.5,.12,.05);headG.add(tail);
+// Augen
+for(const x of [-.15,.15]){const e=ball(.105,mat.eye);e.scale.set(.9,1.1,.55);e.position.set(x,.06,.34);headG.add(e);
+  const p=ball(.05,mat.pupil);p.position.set(x+.015,.04,.4);headG.add(p);
+  const h=ball(.016,mat.eye);h.position.set(x+.04,.08,.44);headG.add(h);}
+// Grinsen
+const smile=new THREE.Mesh(new THREE.TorusGeometry(.13,.035,12,32,Math.PI),mat.mouth);smile.rotation.z=Math.PI;smile.position.set(0,-.2,.33);headG.add(smile);
+const teeth=new THREE.Mesh(new THREE.BoxGeometry(.16,.035,.03),mat.tooth);teeth.position.set(0,-.235,.355);headG.add(teeth);
+for(const x of [-.25,.25]){const ck=ball(.06,mat.cheek);ck.scale.set(1.3,.7,.3);ck.position.set(x,-.15,.31);headG.add(ck);}
+
+// --- Umhang (weht) ---
+const capeGeo=new THREE.PlaneGeometry(1.7,2.4,24,30);
+const capeBase=capeGeo.attributes.position.array.slice();
+const cape=new THREE.Mesh(capeGeo,mat.cape);cape.position.set(0,1.38,-.4);hero.add(cape);
+function waveCape(t){const p=capeGeo.attributes.position;
+  for(let i=0;i<p.count;i++){const x=capeBase[i*3],y=capeBase[i*3+1];const down=(1.2-y)/2.4; // 0 oben, 1 unten
+    const narrow=1-.45*(1-down);p.setX(i,x*narrow);
+    p.setZ(i,-down*down*.55-Math.sin(x*3+t*2.2+down*4)*.08*down-Math.cos(x*2.2)*.06);}
+  p.needsUpdate=true;capeGeo.computeVertexNormals();}
+waveCape(0);
+
+shadowAll(hero);bPlane.castShadow=false;
+hero.position.y=0;
+
+// --- Kostüme ---
+const COSTUMES={
+  gold:{suit:0x2f6bff,suitM:.25,trim:0xffc928,cape:0xff3d7f,head:0x3ee0b0,boot:0xff3d7f,glove:0xffffff,b:'#2f6bff',neon:false},
+  chrom:{suit:0xb9c4d6,suitM:.95,trim:0xff3d7f,cape:0x2f6bff,head:0x3ee0b0,boot:0x6c7a92,glove:0xd9e1ee,b:'#ff3d7f',neon:false},
+  neon:{suit:0x3b1f7a,suitM:.3,trim:0x3ee0b0,cape:0xff3d7f,head:0xffd23f,boot:0x3ee0b0,glove:0x3ee0b0,b:'#3b1f7a',neon:true},
+};
+function costume(k){const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
+  mat.trim.color.setHex(c.trim);mat.cape.color.setHex(c.cape);mat.head.color.setHex(c.head);mat.boot.color.setHex(c.boot);mat.glove.color.setHex(c.glove);
+  neck.material.color.setHex(new THREE.Color(c.head).multiplyScalar(.75).getHex());neon.visible=c.neon;
+  bx.clearRect(0,0,128,128);bx.strokeText('B',64,70);bx.fillStyle=c.b;bx.fillText('B',64,70);bTex.needsUpdate=true;}
+costume('gold');
+
+// --- Posen (Winkel für Oberarm z und Ellbogen z) ---
+const POSES={
+  flex:{l:[0,0],r:[0,0]},
+  wave:{l:[0,0],r:[.55,-1.2]},
+  jubel:{l:[-1.05,-.6],r:[1.05,.6]},
+};
+let pose='flex';
+function applyPose(t){
+  const P=POSES[pose];
+  arms.forEach(a=>{const [up,el]=a.side<0?P.l:P.r;
+    let wig=0;if(pose==='flex')wig=Math.sin(t*3)*.08;if(pose==='wave'&&a.side>0)wig=Math.sin(t*7)*.35;if(pose==='jubel')wig=Math.sin(t*6+a.side)*.12;
+    // Grundpose: Oberarm waagerecht, Unterarm nach oben (Muskelpose)
+    const tu=up*a.side*-1+(pose==='flex'?wig*a.side*-1:0);
+    a.upper.rotation.z+= (tu - a.upper.rotation.z)*.12;
+    const te=(a.side>0?el:-el)+(pose==='wave'&&a.side>0?wig:0)+(pose==='jubel'?wig:0);
+    a.elbow.rotation.z+=(te-a.elbow.rotation.z)*.12;});
+  const hop=pose==='jubel'?Math.abs(Math.sin(t*6))*.18:0;
+  hero.position.y+=(hop-hero.position.y)*.3;
+}
+
+// --- Zwei kleine 3D-Kariesmonster, die erschrocken um ihn herumfliegen ---
+function monster(color){
+  const g=new THREE.Group();
+  const geo=new THREE.IcosahedronGeometry(.32,4);const p=geo.attributes.position;const v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=1+.12*Math.sin(v.x*12)*Math.sin(v.y*10)*Math.cos(v.z*9);v.multiplyScalar(n);p.setXYZ(i,v.x,v.y,v.z);}
+  geo.computeVertexNormals();
+  g.add(new THREE.Mesh(geo,new THREE.MeshPhysicalMaterial({color,roughness:.15,clearcoat:1,clearcoatRoughness:.05,sheen:.5})));
+  for(const x of [-.1,.1]){const e=ball(.085,mat.eye);e.position.set(x,.08,.27);g.add(e);const pp=ball(.04,mat.pupil);pp.position.set(x,.08,.35);g.add(pp);}
+  const m=ball(.07,mat.mouth);m.scale.set(1,1.3,.5);m.position.set(0,-.1,.29);g.add(m);
+  shadowAll(g);scene.add(g);return g;
+}
+const mons=[monster(0xff5d8f),monster(0x7bdc5a)];
+
+// --- Drehen mit Finger oder Maus ---
+let rotY=-.35,velY=0,drag=false,lastX=0,idle=0;
+stage.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;velY=0;stage.setPointerCapture(e.pointerId);});
+stage.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lastX;lastX=e.clientX;rotY+=dx*.01;velY=dx*.01;idle=0;});
+const end=()=>{drag=false;};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
+
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;
+  camera.position.z=w/h<1.1?12.5:9.2;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stage);resize();
+
+const clock=new THREE.Clock();
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
+  if(!drag){rotY+=velY;velY*=.93;idle+=dt;if(idle>2.5&&!reduce)rotY+=dt*.25;}
+  hero.rotation.y=rotY;
+  if(!reduce)waveCape(t);
+  applyPose(reduce?0:t);
+  headG.rotation.z=Math.sin(t*1.3)*.03;
+  mons.forEach((m,i)=>{const a=t*(.7+i*.15)+i*Math.PI;m.position.set(Math.cos(a)*2.2,1.6+i*.9+Math.sin(t*2+i)*.2,Math.sin(a)*1.4);m.rotation.y=-a+Math.PI/2;m.rotation.z=Math.sin(t*5+i)*.25;});
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+document.getElementById('loading').remove();
+frame();
+
+// --- Knöpfe ---
+function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
+group('c-',['gold','chrom','neon'],costume);
+group('p-',['flex','wave','jubel'],k=>{pose=k;});
+})();
+</script>
