@@ -223,15 +223,15 @@ costume('gold');
 const POSES={
   flex:{l:[0,0],r:[0,0]},
   wave:{l:[0,0],r:[.55,-1.2]},
-  jubel:{l:[-1.05,-.6],r:[1.05,.6]},
+  jubel:{l:[.8,-1.25],r:[.8,-1.25]},
 };
 let pose='flex';
 function applyPose(t){
   const P=POSES[pose];
   arms.forEach(a=>{const [up,el]=a.side<0?P.l:P.r;
     let wig=0;if(pose==='flex')wig=Math.sin(t*3)*.08;if(pose==='wave'&&a.side>0)wig=Math.sin(t*7)*.35;if(pose==='jubel')wig=Math.sin(t*6+a.side)*.12;
-    // Grundpose: Oberarm waagerecht, Unterarm nach oben (Muskelpose)
-    const tu=up*a.side*-1+(pose==='flex'?wig*a.side*-1:0);
+    // Grundpose: Oberarm waagerecht, Unterarm nach oben (Muskelpose). up > 0 hebt den Oberarm auf beiden Seiten.
+    const tu=(up+(pose==='flex'?wig:0))*a.side;
     a.upper.rotation.z+= (tu - a.upper.rotation.z)*.12;
     const te=(a.side>0?el:-el)+(pose==='wave'&&a.side>0?wig:0)+(pose==='jubel'?wig:0);
     a.elbow.rotation.z+=(te-a.elbow.rotation.z)*.12;});
@@ -317,6 +317,12 @@ function frame(){
     m.arms.forEach((ar,k)=>{ar.rotation.z=Math.sin(t*14+i+k*2)*.35;});});
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
+}
+// Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
+if(location.search.includes('render')){
+  window.PUTZ={renderer,scene,camera,hero,mons,costume,waveCape,headG,ground,glowDisc,monster,
+    setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);}};
+  document.getElementById('loading').remove();return;
 }
 document.getElementById('loading').remove();
 frame();

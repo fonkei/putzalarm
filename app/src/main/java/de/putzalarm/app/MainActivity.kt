@@ -27,6 +27,8 @@ class MainActivity : ComponentActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        de.putzalarm.app.ui.art.Sprites.init(resources, packageName)
+        Thread { de.putzalarm.app.ui.art.Sprites.preload() }.start()
         val store = ProfileStore(applicationContext)
         voice = Voice(this)
         sfx = Sfx(this)

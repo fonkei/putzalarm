@@ -21,6 +21,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +61,7 @@ import de.putzalarm.app.ui.art.GermImage
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
 import de.putzalarm.app.ui.art.JawHud
+import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Mascot
 import de.putzalarm.app.ui.art.drawGerm
 import de.putzalarm.app.ui.art.drawToothbrush
@@ -163,7 +166,7 @@ fun BrushScreen(
             CameraPreview(Modifier.fillMaxSize(), analyzer = analyzer, onError = { cameraOk = false })
         } else {
             DottedBackground(M.Cream) {
-                Mascot(Modifier.align(Alignment.Center).fillMaxSize(0.62f), wave = false)
+                Mascot(Modifier.align(Alignment.Center).fillMaxSize(0.62f), pose = HeroPose.FLEX)
             }
         }
         GameLayer(game, track, cameraOk, Modifier.fillMaxSize().onSizeChanged { viewSize = Size(it.width.toFloat(), it.height.toFloat()) })
@@ -286,6 +289,17 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
             Modifier.align(Alignment.CenterStart).width(18.u).padding(bottom = 0.7.u).comic(Color.White, 3.u, 0.5.u, 0.7.u).padding(horizontal = 1.8.u, vertical = 1.2.u),
         ) {
             JawHud(if (game.phase == Phase.DONE) -1 else game.zone, game.zoneDone, Modifier.fillMaxWidth())
+        }
+        // Super Bürsti feuert unten rechts an und jubelt bei jeder Combo und am Ende
+        var cheer by remember { mutableStateOf(false) }
+        LaunchedEffect(game.combo) {
+            if (game.combo >= 2) { cheer = true; delay(1600); cheer = false }
+        }
+        if (game.phase != Phase.COUNTDOWN) {
+            Mascot(
+                Modifier.align(Alignment.BottomEnd).fillMaxHeight(0.36f).offset(x = 3.u, y = 2.u),
+                pose = if (cheer || game.phase == Phase.DONE) HeroPose.JUBEL else HeroPose.FLEX,
+            )
         }
         if (game.phase == Phase.RUN) {
             RoundIconButton(Icon.PAUSE, onPause, Modifier.align(Alignment.BottomStart), size = 6.u)

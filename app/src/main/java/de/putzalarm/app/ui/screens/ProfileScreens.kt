@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
+import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Mascot
 import de.putzalarm.app.ui.theme.ComicButton
 import de.putzalarm.app.ui.theme.M
@@ -161,6 +162,6 @@ fun ParentGateScreen(onPass: () -> Unit, onCancel: () -> Unit) {
                 }
             }
         }
-        Mascot(Modifier.align(Alignment.BottomEnd).padding(end = 4.u).width(16.u).offset(y = 2.u), wave = false)
+        Mascot(Modifier.align(Alignment.BottomEnd).padding(end = 4.u).width(16.u).offset(y = 2.u), pose = HeroPose.FLEX)
     }
 }
