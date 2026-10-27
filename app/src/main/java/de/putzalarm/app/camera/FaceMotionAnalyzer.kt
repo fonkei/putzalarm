@@ -45,7 +45,6 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
 
     private val gx = 28
     private val gy = 18
-    private var prev: IntArray? = null
     private var motion = 0f
     private var lastFaceMs = 0L
     private var mx = 0.5f
@@ -64,16 +63,26 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
         val upW = if (rot % 180 == 0) image.width else image.height
         val upH = if (rot % 180 == 0) image.height else image.width
         val now = System.currentTimeMillis()
-        val hasFace = now - lastFaceMs < 700
+        val hasFace = now - lastFaceMs < 1200
 
-        // Bereich um den Mund (oder Bildmitte unten, falls kein Gesicht da ist)
-        val rw = if (hasFace) (fw * 1.2f).coerceIn(0.15f, 0.8f) else 0.5f
-        val rh = if (hasFace) (fh * 0.8f).coerceIn(0.15f, 0.8f) else 0.55f
-        val cx = if (hasFace) mx else 0.5f
-        val cy = if (hasFace) my else 0.65f
-        val raw = measureMotion(image, rot, upW, upH, cx - rw / 2, cy - rh / 2, rw, rh)
-        val level = ((raw - 3.5f) / 9f).coerceIn(0f, 1f)
-        motion = motion * 0.55f + level * 0.45f
+        // Ohne Gesicht gilt keine Bewegung als Putzen.
+        if (hasFace) {
+            // Mundbereich (Bürste, Hand, Kinn) und zum Vergleich die Stirn/Augenpartie.
+            // Bewegt sich der ganze Kopf oder ändert sich das Licht, ändern sich beide gleich stark.
+            val rw = (fw * 1.1f).coerceIn(0.12f, 0.7f)
+            val rh = (fh * 0.6f).coerceIn(0.1f, 0.6f)
+            val mouth = measureMotion(image, rot, upW, upH, mx - rw / 2, my - rh * 0.4f, rw, rh, mouthGrid)
+            val refW = (fw * 0.7f).coerceIn(0.08f, 0.5f)
+            val refH = (fh * 0.3f).coerceIn(0.05f, 0.3f)
+            val ref = measureMotion(image, rot, upW, upH, mx - refW / 2, my - fh * 0.75f, refW, refH, refGrid)
+            val local = mouth - ref * 0.9f
+            val level = ((local - 5f) / 9f).coerceIn(0f, 1f)
+            motion = motion * 0.6f + level * 0.4f
+        } else {
+            mouthGrid.reset()
+            refGrid.reset()
+            motion *= 0.5f
+        }
         latest.set(FaceReading(hasFace, mx, my, fw, fh, motion, upW, upH, now))
 
         detector.process(InputImage.fromMediaImage(media, rot))
@@ -94,8 +103,20 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
             .addOnCompleteListener { image.close() }
     }
 
-    /** Mittlerer Helligkeitsunterschied zum letzten Bild auf einem groben Raster im Bereich. */
-    private fun measureMotion(image: ImageProxy, rot: Int, upW: Int, upH: Int, left: Float, top: Float, w: Float, h: Float): Float {
+    /** Hält das letzte Raster eines Bereichs, um Bild für Bild zu vergleichen. */
+    private class Grid {
+        var prev: IntArray? = null
+        fun reset() { prev = null }
+    }
+
+    private val mouthGrid = Grid()
+    private val refGrid = Grid()
+
+    /**
+     * Mittlere Helligkeitsänderung zum letzten Bild auf einem groben Raster im Bereich.
+     * Die gemeinsame Änderung aller Punkte (Belichtung) wird vorher abgezogen.
+     */
+    private fun measureMotion(image: ImageProxy, rot: Int, upW: Int, upH: Int, left: Float, top: Float, w: Float, h: Float, grid: Grid): Float {
         val plane = image.planes[0]
         val buf = plane.buffer
         val rs = plane.rowStride
@@ -121,12 +142,15 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
             }
             cur[j * gx + i] = sum / Neighbours.size
         }
-        val p = prev
-        prev = cur
+        val p = grid.prev
+        grid.prev = cur
         if (p == null) return 0f
-        var d = 0L
-        for (n in cur.indices) d += abs(cur[n] - p[n])
-        return d.toFloat() / cur.size
+        var mean = 0f
+        for (n in cur.indices) mean += cur[n] - p[n]
+        mean /= cur.size
+        var d = 0f
+        for (n in cur.indices) d += abs(cur[n] - p[n] - mean)
+        return d / cur.size
     }
 
     fun close() = detector.close()

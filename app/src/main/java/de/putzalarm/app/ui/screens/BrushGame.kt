@@ -34,6 +34,8 @@ interface GameEvents {
     fun onCountdown(n: Int) {}
     fun onZone(zone: Int) {}
     fun onScream(text: String) {}
+    fun onPlopp() {}
+    fun onCombo() {}
     fun onIdle() {}
     fun onFinish() {}
 }
@@ -98,7 +100,9 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                     inactive += dt
                     if (inactive > 1f) activeRun = 0f
                 }
-                combo = 1 + (activeRun / 6f).toInt().coerceAtMost(4)
+                val newCombo = 1 + (activeRun / 6f).toInt().coerceAtMost(4)
+                if (newCombo > combo) events.onCombo()
+                combo = newCombo
                 idle = inactive > 3f
                 if (idle) {
                     idleHintT += dt
@@ -160,7 +164,9 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             val gone = g.x < -g.size || g.x > w + g.size || g.y < -g.size || g.y > h + g.size
             if (gone) iter.remove()
             else if (g.age >= g.life) {
-                splats += Splat(g.x, g.y, g.color, g.size, plopp = Random.nextFloat() < 0.4f)
+                val s = Splat(g.x, g.y, g.color, g.size, plopp = Random.nextFloat() < 0.4f)
+                splats += s
+                if (s.plopp) events.onPlopp()
                 iter.remove()
             }
         }

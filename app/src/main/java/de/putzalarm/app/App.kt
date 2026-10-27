@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import de.putzalarm.app.audio.Sfx
 import de.putzalarm.app.audio.Voice
 import de.putzalarm.app.data.ProfileStore
 import de.putzalarm.app.ui.screens.AlbumScreen
@@ -38,7 +39,7 @@ sealed interface Screen {
 }
 
 @Composable
-fun App(store: ProfileStore, voice: Voice) {
+fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
     val context = LocalContext.current
     var screen by remember { mutableStateOf<Screen>(Screen.Picker()) }
     var pendingBrush by remember { mutableStateOf<String?>(null) }
@@ -91,6 +92,7 @@ fun App(store: ProfileStore, voice: Voice) {
                     child = c,
                     cameraAllowed = s.camera,
                     voice = voice,
+                    sfx = sfx,
                     onFinished = { r ->
                         val sticker = store.recordSession(c.id, r.monsters)
                         screen = Screen.Result(c.id, r, sticker)

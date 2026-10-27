@@ -49,6 +49,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import de.putzalarm.app.audio.Sfx
 import de.putzalarm.app.audio.Voice
 import de.putzalarm.app.camera.CameraPreview
 import de.putzalarm.app.camera.FaceMotionAnalyzer
@@ -82,6 +83,7 @@ fun BrushScreen(
     child: Child,
     cameraAllowed: Boolean,
     voice: Voice,
+    sfx: Sfx,
     onFinished: (SessionResult) -> Unit,
     onQuit: () -> Unit,
 ) {
@@ -93,14 +95,20 @@ fun BrushScreen(
 
     val game = remember {
         BrushGame(child.brushSeconds, object : GameEvents {
-            override fun onCountdown(n: Int) = voice.say(if (n == 0) "Los!" else listOf("Eins", "Zwei", "Drei")[n - 1])
+            override fun onCountdown(n: Int) = if (n == 0) sfx.go() else sfx.beep()
             override fun onZone(zone: Int) {
+                sfx.ding()
                 voice.say(BrushGame.ZoneLines[zone])
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-            override fun onScream(text: String) = voice.squeak(text)
+            override fun onScream(text: String) = sfx.scream()
+            override fun onPlopp() = sfx.plopp()
+            override fun onCombo() = sfx.combo()
             override fun onIdle() = voice.say("Schrubb, schrubb! Die Monster verstecken sich!")
-            override fun onFinish() = voice.say("Fertig! Super geputzt, ${child.name}!")
+            override fun onFinish() {
+                sfx.fanfare()
+                voice.say("Fertig! Super geputzt, ${child.name}!")
+            }
         })
     }
     var paused by remember { mutableStateOf(false) }
@@ -111,9 +119,11 @@ fun BrushScreen(
     BackHandler { paused = true }
 
     LaunchedEffect(Unit) {
-        voice.say("Drei")
+        sfx.beep()
         var last = 0L
         var active = false
+        var onTime = 0f
+        var offTime = 0f
         while (true) {
             withFrameNanos { now ->
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)
@@ -124,11 +134,15 @@ fun BrushScreen(
                 val r = analyzer?.latest?.get() ?: FaceReading()
                 track.face = r
                 val fresh = System.currentTimeMillis() - r.timeMs < 1500
+                // Putzen zählt nur mit erkanntem Gesicht und deutlicher Bewegung am Mund,
+                // die kurz anhält. So fliegt nichts, wenn das Kind nur still in die Kamera schaut.
+                val face = cameraOk && fresh && r.hasFace
+                onTime = if (face && r.motion > 0.3f) onTime + dt else 0f
+                offTime = if (!face || r.motion < 0.15f) offTime + dt else 0f
                 active = when {
                     !cameraOk -> true
-                    !fresh -> false
-                    active -> r.motion > 0.12f
-                    else -> r.motion > 0.22f
+                    !active -> onTime > 0.25f
+                    else -> offTime < 0.4f
                 }
                 val target = if (cameraOk && fresh && r.hasFace) toView(r, w, h) else Offset(w / 2, h * 0.55f)
                 val m = track.mouth
@@ -269,7 +283,7 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
         }
         // Gebiss mit aktiver Zone
         Box(
-            Modifier.align(Alignment.BottomCenter).width(27.u).padding(bottom = 0.7.u).comic(Color.White, 3.u, 0.5.u, 0.7.u).padding(horizontal = 1.8.u, vertical = 1.2.u),
+            Modifier.align(Alignment.CenterStart).width(18.u).padding(bottom = 0.7.u).comic(Color.White, 3.u, 0.5.u, 0.7.u).padding(horizontal = 1.8.u, vertical = 1.2.u),
         ) {
             JawHud(if (game.phase == Phase.DONE) -1 else game.zone, game.zoneDone, Modifier.fillMaxWidth())
         }
