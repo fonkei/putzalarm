@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,3 +25,13 @@ jobs:
         with:
           name: putzalarm-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Als Release veröffentlichen (direkter Download fürs Tablet)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk putzalarm.apk
+          gh release create "build-${{ github.run_number }}" putzalarm.apk \
+            --title "Putzalarm Build ${{ github.run_number }}" \
+            --notes "Automatisch gebaut aus ${{ github.sha }}. Auf dem Tablet putzalarm.apk antippen und installieren." \
+            --latest
