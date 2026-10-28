@@ -34,8 +34,13 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 
 <main class="wrap">
   <h1>Super Bürsti in echtem 3D</h1>
-  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz. Er lächelt meistens und lacht ab und zu breit mit glänzenden Zähnen. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Kostüm und Pose wechseln.</p>
+  <p class="lead">Ein echtes 3D-Modell mit Licht, Schatten und Glanz. Er lächelt meistens und lacht ab und zu breit mit glänzenden Zähnen. Zieh mit dem Finger oder der Maus, um ihn zu drehen. Unten kannst du Körper (Held oder schlank), Kostüm und Pose wechseln.</p>
   <div class="stage" id="stage"><div class="loading" id="loading">Super Bürsti wird aufgebaut …</div><span class="hint">Ziehen zum Drehen</span></div>
+  <div class="bar" role="group" aria-label="Körper">
+    <span>Körper</span>
+    <button type="button" id="b-hero" aria-pressed="true">Held</button>
+    <button type="button" id="b-slim" aria-pressed="false">Schlank</button>
+  </div>
   <div class="bar" role="group" aria-label="Kostüm">
     <span>Kostüm</span>
     <button type="button" id="c-gold" aria-pressed="true">Goldglanz</button>
@@ -149,47 +154,101 @@ function roundBox(w,h,d,r,m){const g=new THREE.BoxGeometry(w,h,d,24,24,24),p=g.a
     const dir=v.clone().sub(c).normalize();v.copy(c).addScaledVector(dir,r);p.setXYZ(i,v.x,v.y,v.z);n.setXYZ(i,dir.x,dir.y,dir.z);}
   return new THREE.Mesh(g,m);}
 
-// --- Körper: schlanker Zahnbürsten-Griff als gedrehte, glatte Form ---
-const profile=new THREE.SplineCurve([[0,.84],[.17,.87],[.27,.98],[.29,1.18],[.26,1.5],[.26,1.85],[.28,2.15],[.26,2.38],[.19,2.54],[.115,2.66],[.1,2.8],[.1,2.9]].map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(90);
-const body=new THREE.Mesh(new THREE.LatheGeometry(profile,72),mat.suit);body.scale.z=.78;hero.add(body);
-// --- Beine und Stiefel (Beine stecken weich im Körper) ---
-// Hüftgelenk je Bein, damit er treten, hampeln und moonwalken kann
-const legs=[];
-for(const x of [-.13,.13]){
-  const hip=new THREE.Group();hip.position.set(x,1.0,0);hero.add(hip);
-  const leg=cap(.11,.58,mat.suit);leg.position.y=-.42;hip.add(leg);
-  const ankle=new THREE.Group();ankle.position.set(x*.1,-.86,0);hip.add(ankle);
-  const boot=roundBox(.24,.2,.36,.095,mat.boot);boot.position.set(0,-.02,.05);ankle.add(boot);
-  legs.push({hip,ankle,side:Math.sign(x)});
-}
-// Wappen mit B
+// Wappen-Textur mit B (einmal, das Kostüm färbt sie um)
 const shield=new THREE.Shape();shield.moveTo(0,.2);shield.lineTo(.18,.13);shield.quadraticCurveTo(.18,-.08,0,-.2);shield.quadraticCurveTo(-.18,-.08,-.18,.13);shield.lineTo(0,.2);
-const emb=slab(shield,.03,.025,mat.trim);emb.position.set(0,2.05,.235);hero.add(emb);
 const bc=document.createElement('canvas');bc.width=bc.height=128;const bx=bc.getContext('2d');
 bx.font='900 104px "Arial Black", Arial, sans-serif';bx.textAlign='center';bx.textBaseline='middle';bx.lineWidth=10;bx.strokeStyle='#24123a';bx.strokeText('B',64,70);bx.fillStyle='#2f6bff';bx.fillText('B',64,70);
 const bTex=new THREE.CanvasTexture(bc);bTex.encoding=THREE.sRGBEncoding;
-const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.position.set(0,2.06,.285);hero.add(bPlane);
-// Gürtel
-const belt=new THREE.Mesh(new THREE.TorusGeometry(.262,.035,16,64),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(1,.78,1);belt.position.y=1.5;hero.add(belt);
-const buckle=roundBox(.16,.13,.05,.024,mat.trim);buckle.position.set(0,1.5,.22);hero.add(buckle);
-// Neonringe (nur im Neon-Kostüm sichtbar)
-const neon=new THREE.Group();hero.add(neon);
-for(const [y,r] of [[1.2,.29],[1.78,.262],[2.32,.27]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r+.005,.014,8,64),mat.glow);ring.rotation.x=Math.PI/2;ring.scale.set(1,.78,1);ring.position.y=y;neon.add(ring);}
+const lathe=(pts,sx,sz,m)=>{const g=new THREE.Mesh(new THREE.LatheGeometry(new THREE.SplineCurve(pts.map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(90),72),m);g.scale.set(sx,1,sz);return g;};
 
-// --- Schlanke Arme (mit Gelenken für Posen) ---
-function makeArm(side){
-  const shoulder=new THREE.Group();shoulder.position.set(side*.22,2.3,0);hero.add(shoulder);
-  shoulder.add(ball(.1,mat.suit));
-  const upper=new THREE.Group();shoulder.add(upper);
-  const ua=cap(.085,.36,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.22;upper.add(ua);
-  const elbow=new THREE.Group();elbow.position.x=side*.44;upper.add(elbow);
-  elbow.add(ball(.085,mat.suit));
-  const fa=cap(.08,.3,mat.suit);fa.position.y=.18;elbow.add(fa);
-  const cuff=new THREE.Mesh(new THREE.TorusGeometry(.085,.03,12,32),mat.trim);cuff.rotation.x=Math.PI/2;cuff.position.y=.36;elbow.add(cuff);
-  const fist=ball(.12,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=.47;elbow.add(fist);
-  return {shoulder,upper,elbow,side};
+/**
+ * Körper in zwei Varianten:
+ * - "slim": schlanker Zahnbürsten-Griff
+ * - "hero": Heldenkörper mit breiten Schultern, V-Oberkörper, Brust-, Schulter- und Armmuskeln,
+ *   kräftigen Beinen, hohen Stiefeln und breitem Stand. Kopf und Borsten bleiben die Zahnbürste.
+ */
+function buildBody(kind){
+  const H=kind==='hero',g=new THREE.Group();
+  // Rumpf
+  if(H){
+    g.add(lathe([[0,1.1],[.15,1.12],[.215,1.22],[.21,1.4],[.19,1.6],[.215,1.82],[.29,2.02],[.35,2.18],[.36,2.3],[.31,2.42],[.2,2.53],[.12,2.63],[.105,2.8],[.1,2.92]],1.45,.78,mat.suit));
+    for(const x of [-.16,.16]){const pec=ball(.2,mat.suit);pec.scale.set(1.25,.7,.5);pec.position.set(x,2.12,.19);pec.rotation.z=x>0?-.12:.12;g.add(pec);}
+    const traps=ball(.22,mat.suit);traps.scale.set(1.7,.5,.9);traps.position.set(0,2.44,-.03);g.add(traps);
+  } else g.add(lathe([[0,.84],[.17,.87],[.27,.98],[.29,1.18],[.26,1.5],[.26,1.85],[.28,2.15],[.26,2.38],[.19,2.54],[.115,2.66],[.1,2.8],[.1,2.9]],1,.78,mat.suit));
+  // Wappen
+  const emb=slab(shield,.03,.025,mat.trim);g.add(emb);
+  const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));g.add(bPlane);
+  if(H){emb.scale.setScalar(1.3);emb.position.set(0,2.1,.29);bPlane.scale.setScalar(1.3);bPlane.position.set(0,2.11,.35);}
+  else{emb.position.set(0,2.05,.235);bPlane.position.set(0,2.06,.285);}
+  // Gürtel
+  const by=H?1.58:1.5,bs=H?[1.45*.252/.262,.78]:[1,.78];
+  const belt=new THREE.Mesh(new THREE.TorusGeometry(.262,H?.045:.035,16,64),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(bs[0],bs[1],1);belt.position.y=by;g.add(belt);
+  const buckle=roundBox(H?.2:.16,H?.16:.13,.05,.024,mat.trim);buckle.position.set(0,by,H?.21:.22);g.add(buckle);
+  // Neonringe (nur im Neon-Kostüm sichtbar)
+  const neon=new THREE.Group();g.add(neon);
+  for(const [y,r] of (H?[[1.3,.3],[1.85,.27],[2.25,.37]]:[[1.2,.29],[1.78,.262],[2.32,.27]])){const ring=new THREE.Mesh(new THREE.TorusGeometry(r+.005,.014,8,64),mat.glow);ring.rotation.x=Math.PI/2;ring.scale.set(H?1.45:1,.78,1);ring.position.y=y;neon.add(ring);}
+  // Beine mit Hüftgelenk (treten, hampeln, moonwalken)
+  const legs=[];
+  for(const side of [-1,1]){
+    const hip=new THREE.Group();g.add(hip);
+    const ankle=new THREE.Group();hip.add(ankle);
+    if(H){
+      hip.position.set(side*.17,1.2,0);
+      // ein glatter Bein-Umriss: kräftiger Oberschenkel, schmales Knie, Wade
+      const leg=lathe([[0,.1],[.1,.08],[.15,.03],[.16,-.1],[.15,-.3],[.12,-.48],[.1,-.58],[.115,-.68],[.122,-.76],[.11,-.88],[.1,-1],[0,-1.04]],1,.95,mat.suit);hip.add(leg);
+      // hohe Heldenstiefel mit Rand
+      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.14,.125,.24,32),mat.boot);shaft.position.y=-.97;hip.add(shaft);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(.14,.03,12,40),mat.boot);rim.rotation.x=Math.PI/2;rim.position.y=-.85;hip.add(rim);
+      ankle.position.set(side*.02,-1.08,0);
+      const foot=roundBox(.27,.18,.42,.085,mat.boot);foot.position.set(0,-.0,.06);ankle.add(foot);
+    } else {
+      hip.position.set(side*.13,1.0,0);
+      const leg=cap(.11,.58,mat.suit);leg.position.y=-.42;hip.add(leg);
+      ankle.position.set(side*.013,-.86,0);
+      const boot=roundBox(.24,.2,.36,.095,mat.boot);boot.position.set(0,-.02,.05);ankle.add(boot);
+    }
+    legs.push({hip,ankle,side});
+  }
+  // Arme mit Gelenken für die Posen
+  const arms=[-1,1].map(side=>{
+    const shoulder=new THREE.Group();g.add(shoulder);
+    const upper=new THREE.Group();shoulder.add(upper);
+    const elbow=new THREE.Group();upper.add(elbow);
+    let fistY;
+    if(H){
+      shoulder.position.set(side*.47,2.3,0);
+      const delt=ball(.17,mat.suit);delt.scale.set(1.15,1,1);shoulder.add(delt);
+      const ua=cap(.11,.32,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.25;upper.add(ua);
+      const bicep=ball(.13,mat.suit);bicep.scale.set(1.35,1.05,1);bicep.position.set(side*.26,.07,.02);upper.add(bicep);
+      elbow.position.x=side*.5;
+      elbow.add(ball(.1,mat.suit));
+      const fa=cap(.1,.26,mat.suit);fa.position.y=.2;elbow.add(fa);
+      const faB=ball(.115,mat.suit);faB.scale.set(1,1.45,1);faB.position.y=.13;elbow.add(faB);
+      const cuff=new THREE.Mesh(new THREE.TorusGeometry(.11,.035,12,32),mat.trim);cuff.rotation.x=Math.PI/2;cuff.position.y=.39;elbow.add(cuff);
+      fistY=.53;const fist=ball(.15,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=fistY;elbow.add(fist);
+    } else {
+      shoulder.position.set(side*.22,2.3,0);
+      shoulder.add(ball(.1,mat.suit));
+      const ua=cap(.085,.36,mat.suit);ua.rotation.z=Math.PI/2;ua.position.x=side*.22;upper.add(ua);
+      elbow.position.x=side*.44;
+      elbow.add(ball(.085,mat.suit));
+      const fa=cap(.08,.3,mat.suit);fa.position.y=.18;elbow.add(fa);
+      const cuff=new THREE.Mesh(new THREE.TorusGeometry(.085,.03,12,32),mat.trim);cuff.rotation.x=Math.PI/2;cuff.position.y=.36;elbow.add(cuff);
+      fistY=.47;const fist=ball(.12,mat.glove);fist.scale.set(1,1.05,.95);fist.position.y=fistY;elbow.add(fist);
+    }
+    return {shoulder,upper,elbow,side,fistY};
+  });
+  shadowAll(g);bPlane.castShadow=false;
+  return {g,arms,legs,neon};
 }
-const arms=[makeArm(-1),makeArm(1)];
+let bodyKind='hero',bodyParts=null,arms=[],legs=[],neon=null;
+function setBody(kind){
+  if(bodyParts)hero.remove(bodyParts.g);
+  bodyKind=kind;bodyParts=buildBody(kind);hero.add(bodyParts.g);
+  ({arms,legs,neon}=bodyParts);
+  {cape.scale.x=kind==='hero'?1.4:1;cape.position.set(0,kind==='hero'?1.5:1.38,kind==='hero'?-.3:-.25);}
+  costume(currentCostume);
+}
 
 // --- Kopf (Bürstenkopf, ganz ohne Kanten) ---
 const headG=new THREE.Group();headG.position.y=3.2;hero.add(headG);
@@ -236,7 +295,7 @@ for(const x of [-.21,.21]){const ck=ball(.05,mat.cheek);ck.scale.set(1.3,.7,.3);
 // --- Umhang (weht) ---
 const capeGeo=new THREE.PlaneGeometry(1.2,2.1,24,30);
 const capeBase=capeGeo.attributes.position.array.slice();
-const cape=new THREE.Mesh(capeGeo,mat.cape);cape.position.set(0,1.38,-.25);hero.add(cape);
+const cape=new THREE.Mesh(capeGeo,mat.cape);cape.position.set(0,1.5,-.3);cape.scale.x=1.4;hero.add(cape);
 function waveCape(t){const p=capeGeo.attributes.position;
   for(let i=0;i<p.count;i++){const x=capeBase[i*3],y=capeBase[i*3+1];const down=(1.05-y)/2.1; // 0 oben, 1 unten
     const narrow=1-.5*(1-down);p.setX(i,x*narrow);
@@ -244,7 +303,7 @@ function waveCape(t){const p=capeGeo.attributes.position;
   p.needsUpdate=true;capeGeo.computeVertexNormals();}
 waveCape(0);
 
-shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.3;});bPlane.castShadow=false;
+shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.3;});
 hero.position.y=0;
 
 // --- Kostüme ---
@@ -253,11 +312,12 @@ const COSTUMES={
   chrom:{suit:0xb9c4d6,suitM:.95,trim:0xff3d7f,cape:0x2f6bff,head:0x3ee0b0,boot:0x6c7a92,glove:0xd9e1ee,b:'#ff3d7f',neon:false},
   neon:{suit:0x3b1f7a,suitM:.3,trim:0x3ee0b0,cape:0xff3d7f,head:0xffd23f,boot:0x3ee0b0,glove:0x3ee0b0,b:'#3b1f7a',neon:true},
 };
-function costume(k){const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
+let currentCostume='gold';
+function costume(k){currentCostume=k;const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
   mat.trim.color.setHex(c.trim);mat.cape.color.setHex(c.cape);mat.head.color.setHex(c.head);mat.boot.color.setHex(c.boot);mat.glove.color.setHex(c.glove);
   neon.visible=c.neon;
   bx.clearRect(0,0,128,128);bx.strokeText('B',64,70);bx.fillStyle=c.b;bx.fillText('B',64,70);bTex.needsUpdate=true;}
-costume('gold');
+setBody('hero');
 
 // --- Posen (Winkel für Oberarm z und Ellbogen z) ---
 const POSES={
@@ -273,7 +333,7 @@ const MOVES={
     {L:{uz:-.4,ez:-.6},R:{uz:.4,ez:.6},sway:0,hop:.14,turn:0},
     {L:{uz:1.1,ez:-.4},R:{uz:-.9,ez:-1.2},sway:-.1,hop:.06,turn:-.15},
     {L:{uz:.4,ez:.6},R:{uz:-.4,ez:-.6},sway:0,hop:.14,turn:0}]},
-  brush:{ms:150,f:[-.14,0,.14,0].map(d=>({L:{uz:-1.3,ez:-1.45},R:{sy:1.35+d,uz:.55,ez:-.7},brush:true,turn:.1}))},
+  brush:{ms:150,f:[-.14,0,.14,0].map(d=>({L:{uz:-1.3,ez:-1.45},R:{sy:1.35+d,uz:.55,ez:-.7},RH:{sy:1.7+d,uz:.3,ez:-.4},brush:true,turn:.1}))},
   box:{ms:300,f:[
     {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.1,uz:-.35,ez:.35}},
     {L:{sy:1.1,uz:-.35,ez:.35},R:{sy:1.5,uz:.15,ez:-1.45},turn:.25},
@@ -320,10 +380,12 @@ const lerpA=(o,k,v,f)=>{o[k]+=(v-o[k])*f;};
 function applyMove(t){
   const M=MOVES[pose],n=M.f.length,pos=t*1000/M.ms,i=Math.floor(pos)%n,j=(i+1)%n;let u=pos-Math.floor(pos);u=u*u*(3-2*u);
   const A=M.f[i],B=M.f[j],mix=(a,b,k)=>((a&&a[k])||0)*(1-u)+((b&&b[k])||0)*u;
-  arms.forEach(a=>{const sa=a.side<0?'L':'R';
-    lerpA(a.shoulder.rotation,'y',-a.side*mix(A[sa],B[sa],'sy'),.3);
-    lerpA(a.upper.rotation,'z',a.side*mix(A[sa],B[sa],'uz'),.3);
-    lerpA(a.elbow.rotation,'z',a.side*mix(A[sa],B[sa],'ez'),.3);});
+  // Der Heldenkörper hat längere Arme: wo nötig gibt es eigene Winkel (z. B. RH statt R)
+  const pick=(F,k)=>bodyKind==='hero'&&F[k+'H']?F[k+'H']:F[k];
+  arms.forEach(a=>{const sa=a.side<0?'L':'R',FA=pick(A,sa),FB=pick(B,sa);
+    lerpA(a.shoulder.rotation,'y',-a.side*mix(FA,FB,'sy'),.3);
+    lerpA(a.upper.rotation,'z',a.side*mix(FA,FB,'uz'),.3);
+    lerpA(a.elbow.rotation,'z',a.side*mix(FA,FB,'ez'),.3);});
   // Beine: kx = nach vorn heben, kz = zur Seite abspreizen, toe = Fußspitze nach unten
   legs.forEach(l=>{const sl=l.side<0?'LL':'RL';
     lerpA(l.hip.rotation,'x',-mix(A[sl],B[sl],'kx'),.3);
@@ -333,7 +395,7 @@ function applyMove(t){
   if(M.spin)moveExtra.turn=pos/n*Math.PI*2;
   hero.position.y=moveExtra.hop;
   if(A.brush){hero.updateMatrixWorld(true);const R=arms.find(a=>a.side>0);
-    const fist=hero.worldToLocal(R.elbow.localToWorld(new THREE.Vector3(0,.47,0)));
+    const fist=hero.worldToLocal(R.elbow.localToWorld(new THREE.Vector3(0,R.fistY,0)));
     const dir=new THREE.Vector3(.02,3.0,.24).sub(fist).normalize();
     mini.position.copy(fist).addScaledVector(dir,-.12);mini.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
     const want=new THREE.Vector3(0,-1,0).addScaledVector(dir,dir.y).normalize(),cur=new THREE.Vector3(0,0,1).applyQuaternion(mini.quaternion);
@@ -445,7 +507,7 @@ function frame(){
 }
 // Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
 if(location.search.includes('render')){
-  window.PUTZ={renderer,scene,camera,hero,mons,arms,mat,costume,waveCape,headG,ground,glowDisc,monster,
+  window.PUTZ={get arms(){return arms;},get legs(){return legs;},setBody,renderer,scene,camera,hero,mons,mat,costume,waveCape,headG,ground,glowDisc,monster,
     setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);},setMouth,MOVES,setMove:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyMove(t);return moveExtra;}};
   document.getElementById('loading').remove();return;
 }
@@ -455,6 +517,7 @@ frame();
 // --- Knöpfe ---
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
 group('c-',['gold','chrom','neon'],costume);
+group('b-',['hero','slim'],setBody);
 const POSEKEYS=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly','show'];
 function markPose(){POSEKEYS.forEach(o=>document.getElementById('p-'+o).setAttribute('aria-pressed',show?o==='show':o===pose));}
 POSEKEYS.forEach(k=>document.getElementById('p-'+k).addEventListener('click',()=>{show=k==='show';if(!show)pose=k;else showNext=0;markPose();}));
