@@ -51,11 +51,12 @@ import de.putzalarm.app.ui.theme.u
 @Composable
 fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: () -> Unit, onAlbum: () -> Unit, say: (String) -> Unit) {
     val clean = result.zones.count { it }
-    val stars = when (clean) { 4 -> 3; 3 -> 2; else -> 1 }
+    val stars = when { result.stars >= 10 -> 3; result.stars >= 6 -> 2; else -> 1 }
     val missed = result.zones.indexOfFirst { !it }
     LaunchedEffect(Unit) {
         val sticker = newSticker?.let { " Neu im Album: ${Monsters[it].name}!" } ?: ""
-        say(if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!$sticker" else "Gut gemacht! ${result.monsters} Monster verjagt.$sticker")
+        val starLine = if (result.stars == 1) " Ein Stern für dich!" else if (result.stars > 1) " ${result.stars} Sterne für dich!" else ""
+        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + sticker)
     }
     BackHandler(onBack = onHome)
     Box(Modifier.fillMaxSize().background(M.Blue).padding(horizontal = 5.u, vertical = 4.u)) {
@@ -72,12 +73,27 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
         }
         Row(Modifier.fillMaxSize().padding(top = 12.u), horizontalArrangement = Arrangement.spacedBy(4.u)) {
             Box(Modifier.weight(1.2f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                JawResult(result.zones, Modifier.fillMaxHeight(0.95f))
+                Box(Modifier.fillMaxHeight(0.95f).aspectRatio(400f / 330f)) {
+                    JawResult(result.zones, Modifier.fillMaxSize())
+                    // 0 bis 3 Sterne in der Ecke jeder Kieferzone (oben links, oben rechts, unten links, unten rechts)
+                    val corners = listOf(Alignment.TopStart, Alignment.TopEnd, Alignment.BottomStart, Alignment.BottomEnd)
+                    result.zoneStars.forEachIndexed { zone, n -> ZoneStars(n, zone, Modifier.align(corners[zone]).fillMaxWidth(0.22f)) }
+                }
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.u)) {
-                Column(Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(2.u)) {
-                    BasicText("${result.monsters}", style = lilita(6))
-                    BasicText("Monster verjagt", style = nunito(1.9))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.u)) {
+                    Column(Modifier.weight(1f).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(2.u)) {
+                        BasicText("${result.monsters}", style = lilita(6))
+                        BasicText("Monster verjagt", style = nunito(1.9))
+                    }
+                    Row(
+                        Modifier.weight(1f).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(2.u),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(1.u),
+                    ) {
+                        Star(true, Modifier.width(5.5.u))
+                        BasicText("+${result.stars}", style = lilita(6))
+                    }
                 }
                 if (newSticker != null) {
                     val m = Monsters[newSticker]
@@ -107,6 +123,21 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                     }
                 }
             }
+        }
+    }
+}
+
+/** Sterne einer Kieferzone, die nacheinander aufploppen. */
+@Composable
+private fun ZoneStars(n: Int, zone: Int, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
+        for (i in 0 until 3) {
+            val pop = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(1400L + zone * 450L + i * 160L)
+                pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow))
+            }
+            Star(i < n, Modifier.weight(1f).scale(pop.value))
         }
     }
 }

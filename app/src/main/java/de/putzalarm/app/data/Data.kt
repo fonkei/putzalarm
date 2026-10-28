@@ -46,6 +46,8 @@ data class Child(
     val stickers: List<Int> = emptyList(),
     val monsters: Int = 0,
     val sessions: List<Long> = emptyList(),
+    /** Alle je gesammelten Sterne (0 bis 3 pro Kieferzone und Putzrunde). */
+    val stars: Int = 0,
 ) {
     private val days: Set<LocalDate>
         get() = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
@@ -154,13 +156,14 @@ class ProfileStore(context: Context) {
     }
 
     /** Trägt eine fertige Putzrunde ein und schaltet einen neuen Sticker frei. Gibt dessen Id zurück. */
-    fun recordSession(id: String, monstersChased: Int): Int? {
+    fun recordSession(id: String, monstersChased: Int, starsEarned: Int): Int? {
         val c = get(id) ?: return null
         val locked = Monsters.map { it.id }.filterNot { it in c.stickers }
         val fresh = locked.randomOrNull()
         upsert(
             c.copy(
                 monsters = c.monsters + monstersChased,
+                stars = c.stars + starsEarned,
                 sessions = (c.sessions + System.currentTimeMillis()).takeLast(200),
                 stickers = if (fresh != null) c.stickers + fresh else c.stickers,
             ),
@@ -182,6 +185,7 @@ class ProfileStore(context: Context) {
                     stickers = o.optJSONArray("stickers").ints(),
                     monsters = o.optInt("monsters"),
                     sessions = o.optJSONArray("sessions").longs(),
+                    stars = o.optInt("stars"),
                 )
             }
         }
@@ -197,7 +201,8 @@ class ProfileStore(context: Context) {
                     .put("id", c.id).put("name", c.name).put("age", c.age)
                     .put("photo", c.photo ?: "").put("avatar", c.avatar)
                     .put("stickers", JSONArray(c.stickers)).put("monsters", c.monsters)
-                    .put("sessions", JSONArray(c.sessions)),
+                    .put("sessions", JSONArray(c.sessions))
+                    .put("stars", c.stars),
             )
         }
         val tmp = File(file.parentFile, file.name + ".tmp")

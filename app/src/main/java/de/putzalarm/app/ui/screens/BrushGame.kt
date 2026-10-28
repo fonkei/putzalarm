@@ -45,7 +45,18 @@ interface GameEvents {
     fun onFinish() {}
 }
 
-data class SessionResult(val monsters: Int, val zones: List<Boolean>)
+/** [zoneStars]: 0 bis 3 Sterne je Kieferzone, je nachdem, wie lange dort wirklich geschrubbt wurde. */
+data class SessionResult(val monsters: Int, val zones: List<Boolean>, val zoneStars: List<Int> = zones.map { if (it) 2 else 0 }) {
+    val stars get() = zoneStars.sum()
+}
+
+/** Sterne für eine Zone aus dem Anteil der Zeit, in der geschrubbt wurde. Ab 2 Sternen gilt sie als sauber. */
+fun starsFor(activeShare: Float): Int = when {
+    activeShare >= 0.7f -> 3
+    activeShare >= 0.4f -> 2
+    activeShare >= 0.15f -> 1
+    else -> 0
+}
 
 /**
  * Spiellogik des Putz-Bildschirms, unabhängig vom Zeichnen: Countdown, 4 Zonen à ¼ der Zeit,
@@ -60,6 +71,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
     var zone by mutableIntStateOf(0); private set
     var idle by mutableStateOf(false); private set
     val zoneDone = mutableStateListOf(false, false, false, false)
+    val zoneStars = mutableStateListOf(0, 0, 0, 0)
 
     /** Wird jedes Bild erhöht, damit die Zeichenfläche neu malt. */
     var frame by mutableLongStateOf(0L); private set
@@ -77,7 +89,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
     private var idleHintT = 0f
     private var spawnAcc = 0f
 
-    val result get() = SessionResult(monsters, zoneDone.toList())
+    val result get() = SessionResult(monsters, zoneDone.toList(), zoneStars.toList())
 
     fun step(dt: Float, active: Boolean, mouth: Offset, unitPx: Float, w: Float, h: Float) {
         time += dt
@@ -92,7 +104,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                 elapsed += dt
                 val z = (elapsed / zoneLen).toInt().coerceAtMost(3)
                 if (z != zone) {
-                    zoneDone[zone] = zoneActive[zone] >= zoneLen * 0.4f
+                    closeZone()
                     zone = z
                     events.onZone(z)
                 }
@@ -122,7 +134,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                     }
                 }
                 if (elapsed >= duration) {
-                    zoneDone[zone] = zoneActive[zone] >= zoneLen * 0.4f
+                    closeZone()
                     secondsLeft = 0
                     idle = false
                     phase = Phase.DONE
@@ -133,6 +145,11 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
         }
         animate(dt, unitPx, w, h)
         frame++
+    }
+
+    private fun closeZone() {
+        zoneStars[zone] = starsFor(zoneActive[zone] / zoneLen)
+        zoneDone[zone] = zoneStars[zone] >= 2
     }
 
     private fun spawn(mouth: Offset, u: Float) {

@@ -103,7 +103,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     voice = voice,
                     sfx = sfx,
                     onFinished = { r ->
-                        val sticker = store.recordSession(c.id, r.monsters)
+                        val sticker = store.recordSession(c.id, r.monsters, r.stars)
                         screen = Screen.Result(c.id, r, sticker)
                     },
                     onQuit = { screen = Screen.Home(c.id) },
