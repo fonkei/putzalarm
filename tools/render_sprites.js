@@ -32,6 +32,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
     const grab = (cam, w, h) => { renderer.setSize(w, h, false); renderer.render(scene, cam); return renderer.domElement.toDataURL('image/png'); };
 
     // Super Bürsti (Goldglanz), leicht schräg von vorn
+    P.setBody('hero'); // Heldenkörper (von Konni freigegeben)
     P.costume('gold');
     hero.rotation.y = -0.3;
     const cam = new T.PerspectiveCamera(32, 3 / 4, 0.1, 100);
