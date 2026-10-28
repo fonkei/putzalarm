@@ -13,6 +13,7 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.IsoFields
 import java.util.UUID
 
 /** Ein Monster aus dem Sammelalbum. */
@@ -40,6 +41,28 @@ val Monsters: List<Monster> = listOf(
     Monster(24 + i, name, Palette[(i * 5 + 2) % Palette.size], GermKind.entries[(i + 1) % GermKind.entries.size], rare = true)
 }
 
+/** Boss-Monster: jede Woche (Mo bis So) kommt eins. Besiegt wird es mit den Sternen der ganzen Woche. */
+data class Boss(val id: Int, val name: String, val color: Color, val kind: GermKind)
+
+val Bosses = listOf(
+    Boss(0, "Karies-King", Color(0xFFB57BFF), GermKind.SPIKE),
+    Boss(1, "Riesen-Zucki", Color(0xFFFF5D8F), GermKind.BLOB),
+    Boss(2, "Kaugummi-Koloss", Color(0xFF7BDC5A), GermKind.BEAN),
+    Boss(3, "Schoko-Schreck", Color(0xFFFF7A5C), GermKind.CYCLOPS),
+    Boss(4, "Mega-Plaquo", Color(0xFFFFB627), GermKind.SPIKE),
+    Boss(5, "Bonbon-Brutalo", Color(0xFF5AC8FA), GermKind.BLOB),
+)
+
+/** Lebenspunkte eines Bosses: zweimal am Tag gut putzen schafft ihn in etwa fünf Tagen, einmal am Tag reicht nicht. */
+const val BossHp = 80
+
+/** Kennung der laufenden Woche, z. B. "2026-44". */
+fun weekKey(day: LocalDate = LocalDate.now()): String =
+    "${day.get(IsoFields.WEEK_BASED_YEAR)}-${day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)}"
+
+/** Der Boss dieser Woche. */
+fun bossOfWeek(day: LocalDate = LocalDate.now()): Boss = Bosses[day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) % Bosses.size]
+
 /** So viele Sterne (von 12) braucht eine Putzrunde, damit ein seltenes Monster ins Album kommt. */
 const val RareStars = 11
 
@@ -60,7 +83,15 @@ data class Child(
     /** Gewähltes Kostüm und Umhang von Super Bürsti (siehe Rewards.kt). */
     val costume: String = "gold",
     val cape: Int = 0,
+    /** Schaden am Boss in der Woche [bossWeek] (= Sterne dieser Woche) und alle besiegten Bosse (Ids, je Woche einer). */
+    val bossWeek: String = "",
+    val bossDamage: Int = 0,
+    val bossWins: List<Int> = emptyList(),
 ) {
+    /** Schaden am Boss dieser Woche; in einer neuen Woche fängt es bei 0 an. */
+    val bossDamageNow: Int get() = if (bossWeek == weekKey()) bossDamage else 0
+    val bossBeatenNow: Boolean get() = bossDamageNow >= BossHp
+
     private val days: Set<LocalDate>
         get() = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
 
@@ -177,6 +208,9 @@ class ProfileStore(context: Context) {
             c.copy(
                 monsters = c.monsters + monstersChased,
                 stars = c.stars + starsEarned,
+                bossWeek = weekKey(),
+                bossDamage = c.bossDamageNow + starsEarned,
+                bossWins = if (c.bossDamageNow < BossHp && c.bossDamageNow + starsEarned >= BossHp) c.bossWins + bossOfWeek().id else c.bossWins,
                 sessions = (c.sessions + System.currentTimeMillis()).takeLast(200),
                 stickers = if (fresh != null) c.stickers + fresh else c.stickers,
             ),
@@ -201,6 +235,9 @@ class ProfileStore(context: Context) {
                     stars = o.optInt("stars"),
                     costume = o.optString("costume", "gold"),
                     cape = o.optInt("cape"),
+                    bossWeek = o.optString("bossWeek"),
+                    bossDamage = o.optInt("bossDamage"),
+                    bossWins = o.optJSONArray("bossWins").ints(),
                 )
             }
         }
@@ -218,7 +255,8 @@ class ProfileStore(context: Context) {
                     .put("stickers", JSONArray(c.stickers)).put("monsters", c.monsters)
                     .put("sessions", JSONArray(c.sessions))
                     .put("stars", c.stars)
-                    .put("costume", c.costume).put("cape", c.cape),
+                    .put("costume", c.costume).put("cape", c.cape)
+                    .put("bossWeek", c.bossWeek).put("bossDamage", c.bossDamage).put("bossWins", JSONArray(c.bossWins)),
             )
         }
         val tmp = File(file.parentFile, file.name + ".tmp")

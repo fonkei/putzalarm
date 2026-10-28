@@ -36,6 +36,13 @@ import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
 import de.putzalarm.app.data.newRewards
+import de.putzalarm.app.data.BossHp
+import de.putzalarm.app.data.Bosses
+import de.putzalarm.app.data.bossOfWeek
+import de.putzalarm.app.ui.art.BossImage
+import de.putzalarm.app.ui.art.BossBar
+import de.putzalarm.app.ui.art.GermImage
+import androidx.compose.animation.core.tween
 import de.putzalarm.app.ui.art.MonsterImage
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
@@ -59,7 +66,9 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
         val sticker = newSticker?.let { Monsters[it] }?.let { if (it.rare) " Wow, ein seltenes Monster: ${it.name}!" else " Neu im Album: ${it.name}!" } ?: ""
         val starLine = if (result.stars == 1) " Ein Stern für dich!" else if (result.stars > 1) " ${result.stars} Sterne für dich!" else ""
         val reward = unlocked.lastOrNull()?.let { " Und neu für Super Bürsti: ${it.spoken}!" } ?: ""
-        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + sticker + reward)
+        val after = child.bossDamageNow
+        val boss = if (after >= BossHp && after - result.stars < BossHp) " Und du hast den Boss ${bossOfWeek().name} besiegt! Wahnsinn!" else ""
+        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + boss + sticker + reward)
     }
     BackHandler(onBack = onHome)
     Box(Modifier.fillMaxSize().background(M.Blue).padding(horizontal = 5.u, vertical = 4.u)) {
@@ -84,19 +93,17 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.u)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.u)) {
-                    Column(Modifier.weight(1f).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(2.u)) {
-                        BasicText("${result.monsters}", style = lilita(6))
-                        BasicText("Monster verjagt", style = nunito(1.9))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.6.u), verticalAlignment = Alignment.CenterVertically) {
+                    val card = Modifier.height(9.u).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.4.u, vertical = 1.2.u)
+                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+                        GermImage(Color(0xFF7BDC5A), de.putzalarm.app.ui.art.GermKind.BLOB, Modifier.width(5.5.u))
+                        BasicText("${result.monsters}", style = lilita(4.4))
                     }
-                    Row(
-                        Modifier.weight(1f).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(2.u),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(1.u),
-                    ) {
-                        Star(true, Modifier.width(5.5.u))
-                        BasicText("+${result.stars}", style = lilita(6))
+                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+                        Star(true, Modifier.width(5.u))
+                        BasicText("+${result.stars}", style = lilita(4.4))
                     }
+                    BossHit(child, result.stars, card.weight(1.3f))
                 }
                 if (newSticker != null) {
                     val m = Monsters[newSticker]
@@ -145,6 +152,31 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
 private val RareGold = Color(0xFFFFE27A)
 private val RareLocked = Color(0xFFF3D98C)
 
+/** Der Boss der Woche bekommt die neuen Sterne ab: Er wackelt, und sein Lebensbalken schrumpft. */
+@Composable
+private fun BossHit(child: Child, stars: Int, modifier: Modifier) {
+    val boss = bossOfWeek()
+    val after = child.bossDamageNow
+    val before = (after - stars).coerceAtLeast(0)
+    val left = remember { Animatable(1f - before.toFloat() / BossHp) }
+    val hit = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(3400L)
+        if (before >= BossHp) return@LaunchedEffect
+        hit.snapTo(1f)
+        left.animateTo((1f - after.toFloat() / BossHp).coerceAtLeast(0f), tween(1100))
+        hit.animateTo(0f, tween(500))
+    }
+    val beaten = left.value <= 0f
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+        BossImage(boss, Modifier.width(6.u), beaten = beaten, hit = hit.value)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(0.6.u)) {
+            BossBar(left.value, Modifier.fillMaxWidth().height(2.u))
+            if (beaten) Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) { repeat(3) { Star(true, Modifier.width(2.4.u)) } }
+        }
+    }
+}
+
 /** Sterne einer Kieferzone, die nacheinander aufploppen. */
 @Composable
 private fun ZoneStars(n: Int, zone: Int, modifier: Modifier) {
@@ -175,7 +207,22 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
                 modifier = Modifier.comic(Color.White, 3.u, 0.5.u).padding(horizontal = 2.u, vertical = 0.6.u),
             )
         }
-        Spacer(Modifier.height(2.u))
+        Spacer(Modifier.height(1.6.u))
+        // Besiegte Bosse (einer pro Woche); noch nie besiegte nur als Schatten
+        Row(
+            Modifier.fillMaxWidth().comic(Color.White, 2.4.u, 0.5.u).padding(horizontal = 2.u, vertical = 1.u),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Bosses.forEach { b ->
+                val wins = child.bossWins.count { it == b.id }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BossImage(b, Modifier.width(7.u), beaten = wins > 0, tint = if (wins > 0) null else M.Ink.copy(alpha = 0.25f))
+                    if (wins > 1) BasicText("×$wins", style = lilita(2.4))
+                }
+            }
+        }
+        Spacer(Modifier.height(0.8.u))
         LazyVerticalGrid(
             GridCells.Fixed(6),
             Modifier.fillMaxSize(),

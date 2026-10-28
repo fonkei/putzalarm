@@ -36,6 +36,10 @@ import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
 import de.putzalarm.app.ui.art.GermImage
 import de.putzalarm.app.ui.art.MonsterImage
+import de.putzalarm.app.ui.art.BossImage
+import de.putzalarm.app.ui.art.BossBar
+import de.putzalarm.app.data.bossOfWeek
+import de.putzalarm.app.data.BossHp
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
 import de.putzalarm.app.ui.art.Mascot
@@ -66,6 +70,25 @@ fun HomeScreen(
         Row(Modifier.align(Alignment.TopStart).padding(3.5.u), verticalAlignment = Alignment.CenterVertically) {
             ComicButton(onSwitch, bg = Color.White, radius = 10.u, border = 0.45.u, shadow = 0.6.u, padding = 0.4.u) {
                 ChildAvatar(child, photoDir, 6.u)
+            }
+            Spacer(Modifier.width(2.u))
+            // Boss der Woche mit Lebensbalken; antippen erklärt ihn
+            val boss = bossOfWeek()
+            val beaten = child.bossBeatenNow
+            ComicButton(
+                {
+                    greet(
+                        if (beaten) "Den Boss ${boss.name} hast du diese Woche schon besiegt. Super!"
+                        else "Das ist ${boss.name}, der Boss dieser Woche! Jeder Stern beim Putzen trifft ihn. Putz morgens und abends, dann schaffst du ihn!",
+                    )
+                },
+                bg = if (beaten) M.Mint else Color.White, radius = 2.u, border = 0.45.u, shadow = 0.6.u, padding = 0.6.u,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
+                    BossImage(boss, Modifier.size(6.u), beaten = beaten)
+                    BossBar(1f - child.bossDamageNow.toFloat() / BossHp, Modifier.width(13.u).height(2.u))
+                    if (beaten) IconArt(Icon.CHECK, Modifier.size(3.4.u))
+                }
             }
         }
         Column(
