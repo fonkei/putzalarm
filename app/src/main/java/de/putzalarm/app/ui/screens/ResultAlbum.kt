@@ -5,6 +5,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,49 +94,57 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                     result.zoneStars.forEachIndexed { zone, n -> ZoneStars(n, zone, Modifier.align(corners[zone]).fillMaxWidth(0.22f)) }
                 }
             }
-            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.u)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.6.u), verticalAlignment = Alignment.CenterVertically) {
-                    val card = Modifier.height(9.u).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.4.u, vertical = 1.2.u)
-                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(1.4.u)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.u), verticalAlignment = Alignment.CenterVertically) {
+                    val card = Modifier.height(8.5.u).padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 1.u)
+                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
                         GermImage(Color(0xFF7BDC5A), de.putzalarm.app.ui.art.GermKind.BLOB, Modifier.width(5.5.u))
                         BasicText("${result.monsters}", style = lilita(4.4))
                     }
-                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+                    Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
                         Star(true, Modifier.width(5.u))
                         BasicText("+${result.stars}", style = lilita(4.4))
                     }
-                    BossHit(child, result.stars, card.weight(1.3f))
                 }
-                if (newSticker != null) {
-                    val m = Monsters[newSticker]
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(if (m.rare) RareGold else M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(1.6.u),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(1.6.u),
-                    ) {
-                        MonsterImage(m, Modifier.size(8.u))
-                        Column {
-                            BasicText("Neu im Album:", style = nunito(1.9))
-                            BasicText(m.name, style = lilita(4))
+                BossHit(
+                    child, result.stars,
+                    Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 2.4.u, vertical = 1.4.u),
+                )
+                // Was dazwischen passt, darf scrollen; die Knöpfe unten bleiben immer ganz
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(1.4.u),
+                ) {
+                    if (newSticker != null) {
+                        val m = Monsters[newSticker]
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(if (m.rare) RareGold else M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 1.2.u),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(1.6.u),
+                        ) {
+                            MonsterImage(m, Modifier.size(6.5.u))
+                            Column {
+                                BasicText("Neu im Album:", style = nunito(1.8))
+                                BasicText(m.name, style = lilita(3.4))
+                            }
+                        }
+                    } else if (missed >= 0) {
+                        Box(Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 1.4.u)) {
+                            BasicText("Da verstecken sich noch welche. Nächstes Mal erwischst du sie!", style = nunito(1.8))
                         }
                     }
-                } else if (missed >= 0) {
-                    Box(Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(2.u)) {
-                        BasicText("Da verstecken sich noch welche. Nächstes Mal erwischst du sie!", style = nunito(1.9))
+                    if (unlocked.isNotEmpty()) {
+                        // Neu freigeschaltet: Bilder der neuen Sachen für Super Bürsti
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Mint, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 1.u),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(1.6.u),
+                        ) {
+                            IconArt(Icon.HANGER, Modifier.size(4.6.u))
+                            unlocked.forEach { RewardImage(it, Modifier.height(7.u)) }
+                        }
                     }
                 }
-                if (unlocked.isNotEmpty()) {
-                    // Neu freigeschaltet: Bilder der neuen Sachen für Super Bürsti
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Mint, 2.4.u, 0.5.u, 0.8.u).padding(1.4.u),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(1.6.u),
-                    ) {
-                        IconArt(Icon.HANGER, Modifier.size(5.u))
-                        unlocked.forEach { RewardImage(it, Modifier.height(9.u)) }
-                    }
-                }
-                Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(2.u)) {
                     ComicButton(onAlbum, Modifier.weight(1f), bg = Color.White) {
                         BasicText("Album", style = lilita(3.4, align = TextAlign.Center))
@@ -168,11 +178,11 @@ private fun BossHit(child: Child, stars: Int, modifier: Modifier) {
         hit.animateTo(0f, tween(500))
     }
     val beaten = left.value <= 0f
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
-        BossImage(boss, Modifier.width(6.u), beaten = beaten, hit = hit.value)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(0.6.u)) {
-            BossBar(left.value, Modifier.fillMaxWidth().height(2.u))
-            if (beaten) Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) { repeat(3) { Star(true, Modifier.width(2.4.u)) } }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.4.u)) {
+        BossImage(boss, Modifier.width(7.u), beaten = beaten, hit = hit.value)
+        Column(Modifier.weight(1f).padding(end = 0.6.u), verticalArrangement = Arrangement.spacedBy(1.u)) {
+            BossBar(left.value, Modifier.fillMaxWidth().height(2.6.u))
+            if (beaten) Row(horizontalArrangement = Arrangement.spacedBy(0.6.u)) { repeat(3) { Star(true, Modifier.width(2.6.u)) } }
         }
     }
 }
