@@ -1,6 +1,20 @@
 package de.putzalarm.app.ui.art
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import de.putzalarm.app.data.Monster
+import de.putzalarm.app.ui.theme.M
+import kotlin.math.PI
+import kotlin.math.sin
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -69,5 +83,69 @@ fun GermImage(
 ) {
     Canvas(modifier.aspectRatio(1f)) {
         drawGerm(center, size.minDimension * 0.86f, color, kind, seed, tint = tint)
+    }
+}
+
+/**
+ * Ein Monster aus dem Album. Seltene Monster tragen eine goldene Krone und funkeln.
+ * Mit [tint] (gesperrt) bleibt bei seltenen die Krone als Umriss sichtbar, damit man sieht: hier wartet etwas Besonderes.
+ */
+@Composable
+fun MonsterImage(m: Monster, modifier: Modifier = Modifier, tint: Color? = null) {
+    if (!m.rare) {
+        GermImage(m.color, m.kind, modifier, tint = tint)
+        return
+    }
+    val t = rememberInfiniteTransition(label = "selten")
+    val time by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
+    Canvas(modifier.aspectRatio(1f)) {
+        val d = size.minDimension
+        drawGerm(Offset(center.x, center.y + d * 0.07f), d * 0.78f, m.color, m.kind, tint = tint)
+        drawCrown(Offset(center.x, d * 0.16f), d * 0.42f, locked = tint != null)
+        if (tint != null) return@Canvas
+        val spots = listOf(Offset(0.16f, 0.3f), Offset(0.86f, 0.42f), Offset(0.24f, 0.86f), Offset(0.8f, 0.82f))
+        spots.forEachIndexed { i, p ->
+            val phase = (time + i * 0.27f) % 1f
+            if (phase < 0.45f) {
+                val k = sin(phase / 0.45f * PI.toFloat())
+                val c = Offset(p.x * d, p.y * d)
+                drawSparkle(c, d * 0.09f * k, M.Yellow)
+                drawSparkle(c, d * 0.055f * k, Color.White)
+            }
+        }
+    }
+}
+
+/** Goldene Krone mit drei Zacken, [top] = Mitte der Oberkante, [w] = Breite. */
+fun DrawScope.drawCrown(top: Offset, w: Float, locked: Boolean = false) {
+    val h = w * 0.62f
+    val x0 = top.x - w / 2
+    val p = Path().apply {
+        moveTo(x0, top.y + h)
+        lineTo(x0 - w * 0.04f, top.y + h * 0.18f)
+        lineTo(x0 + w * 0.27f, top.y + h * 0.55f)
+        lineTo(top.x, top.y)
+        lineTo(x0 + w * 0.73f, top.y + h * 0.55f)
+        lineTo(x0 + w * 1.04f, top.y + h * 0.18f)
+        lineTo(x0 + w, top.y + h)
+        close()
+    }
+    val ink = Stroke(w * 0.06f, join = StrokeJoin.Round)
+    if (locked) {
+        drawPath(p, M.Yellow.copy(alpha = 0.35f))
+        drawPath(p, M.Ink.copy(alpha = 0.45f), style = ink)
+        return
+    }
+    drawPath(p, M.Yellow)
+    // Glanz oben links und ein Band mit Edelsteinen
+    drawRect(Color(0xFFFFB627), Offset(x0 + w * 0.02f, top.y + h * 0.72f), androidx.compose.ui.geometry.Size(w * 0.96f, h * 0.2f))
+    drawPath(p, M.Ink, style = ink)
+    drawCircle(Color(0xFFFF3D7F), w * 0.07f, Offset(top.x, top.y + h * 0.82f))
+    drawCircle(Color(0xFF2F6BFF), w * 0.055f, Offset(x0 + w * 0.22f, top.y + h * 0.82f))
+    drawCircle(Color(0xFF2F6BFF), w * 0.055f, Offset(x0 + w * 0.78f, top.y + h * 0.82f))
+    for (x in listOf(x0 - w * 0.04f, top.x, x0 + w * 1.04f)) {
+        val y = if (x == top.x) top.y else top.y + h * 0.18f
+        drawCircle(M.Yellow, w * 0.07f, Offset(x, y))
+        drawCircle(M.Ink, w * 0.07f, Offset(x, y), style = Stroke(w * 0.04f))
     }
 }

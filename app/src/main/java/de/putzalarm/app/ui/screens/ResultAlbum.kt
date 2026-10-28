@@ -35,7 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
-import de.putzalarm.app.ui.art.GermImage
+import de.putzalarm.app.ui.art.MonsterImage
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
 import de.putzalarm.app.ui.art.JawResult
@@ -54,7 +54,7 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
     val stars = when { result.stars >= 10 -> 3; result.stars >= 6 -> 2; else -> 1 }
     val missed = result.zones.indexOfFirst { !it }
     LaunchedEffect(Unit) {
-        val sticker = newSticker?.let { " Neu im Album: ${Monsters[it].name}!" } ?: ""
+        val sticker = newSticker?.let { Monsters[it] }?.let { if (it.rare) " Wow, ein seltenes Monster: ${it.name}!" else " Neu im Album: ${it.name}!" } ?: ""
         val starLine = if (result.stars == 1) " Ein Stern für dich!" else if (result.stars > 1) " ${result.stars} Sterne für dich!" else ""
         say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + sticker)
     }
@@ -98,11 +98,11 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                 if (newSticker != null) {
                     val m = Monsters[newSticker]
                     Row(
-                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(1.6.u),
+                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(if (m.rare) RareGold else M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(1.6.u),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(1.6.u),
                     ) {
-                        GermImage(m.color, m.kind, Modifier.size(8.u))
+                        MonsterImage(m, Modifier.size(8.u))
                         Column {
                             BasicText("Neu im Album:", style = nunito(1.9))
                             BasicText(m.name, style = lilita(4))
@@ -126,6 +126,10 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
         }
     }
 }
+
+/** Karten für seltene Monster: Gold, gesperrt ein blasses Gold. */
+private val RareGold = Color(0xFFFFE27A)
+private val RareLocked = Color(0xFFF3D98C)
 
 /** Sterne einer Kieferzone, die nacheinander aufploppen. */
 @Composable
@@ -174,12 +178,20 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
                             .fillMaxWidth()
                             .aspectRatio(0.92f)
                             .rotate(if (fresh) -3f else 0f)
-                            .comic(if (fresh) M.Yellow else if (owned) Color.White else M.LockPink, 2.u, 0.5.u)
+                            .comic(
+                                when {
+                                    fresh -> M.Yellow
+                                    m.rare -> if (owned) RareGold else RareLocked
+                                    owned -> Color.White
+                                    else -> M.LockPink
+                                },
+                                2.u, 0.5.u,
+                            )
                             .padding(1.u),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        GermImage(m.color, m.kind, Modifier.fillMaxWidth(0.72f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
+                        MonsterImage(m, Modifier.fillMaxWidth(0.72f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
                         BasicText(if (owned) m.name else "?", style = lilita(2.2, align = TextAlign.Center), maxLines = 1)
                     }
                     if (fresh) {

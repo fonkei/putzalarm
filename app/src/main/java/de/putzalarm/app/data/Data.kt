@@ -16,7 +16,8 @@ import java.time.ZoneId
 import java.util.UUID
 
 /** Ein Monster aus dem Sammelalbum. */
-data class Monster(val id: Int, val name: String, val color: Color, val kind: GermKind)
+/** [rare]: seltenes Monster mit Krone, gibt es nur nach sehr gründlichem Putzen. */
+data class Monster(val id: Int, val name: String, val color: Color, val kind: GermKind, val rare: Boolean = false)
 
 private val Palette = listOf(
     Color(0xFFFF5D8F), Color(0xFF7BDC5A), Color(0xFFFFB627), Color(0xFF5AC8FA),
@@ -32,7 +33,15 @@ val Monsters: List<Monster> = listOf(
     "Gummibärt", "Pommesine", "Klebrina", "Zwickzwack", "Schnuddel", "Fiesling", "Brausebold", "Keksi",
 ).mapIndexed { i, name ->
     Monster(i, name, Palette[(i * 3) % Palette.size], GermKind.entries[i % GermKind.entries.size])
+} + listOf(
+    "König Karius", "Glitzerine", "Baron Bonbon", "Lady Lakritz",
+    "Prinz Pudding", "Kaiserin Kandis", "Herzog Honig", "Fürst Fruchtgummi",
+).mapIndexed { i, name ->
+    Monster(24 + i, name, Palette[(i * 5 + 2) % Palette.size], GermKind.entries[(i + 1) % GermKind.entries.size], rare = true)
 }
+
+/** So viele Sterne (von 12) braucht eine Putzrunde, damit ein seltenes Monster ins Album kommt. */
+const val RareStars = 11
 
 /** Monster, die Kinder statt eines Fotos als Profilbild nehmen können. */
 val AvatarMonsters = listOf(0, 3, 4, 1, 2, 5).map { Monsters[it] }
@@ -158,8 +167,9 @@ class ProfileStore(context: Context) {
     /** Trägt eine fertige Putzrunde ein und schaltet einen neuen Sticker frei. Gibt dessen Id zurück. */
     fun recordSession(id: String, monstersChased: Int, starsEarned: Int): Int? {
         val c = get(id) ?: return null
-        val locked = Monsters.map { it.id }.filterNot { it in c.stickers }
-        val fresh = locked.randomOrNull()
+        // Nach sehr gründlichem Putzen gibt es ein seltenes Monster, sonst ein normales
+        val (rare, normal) = Monsters.filterNot { it.id in c.stickers }.partition { it.rare }
+        val fresh = (if (starsEarned >= RareStars) rare.randomOrNull() ?: normal.randomOrNull() else normal.randomOrNull())?.id
         upsert(
             c.copy(
                 monsters = c.monsters + monstersChased,

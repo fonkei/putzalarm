@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
 import de.putzalarm.app.ui.art.GermImage
+import de.putzalarm.app.ui.art.MonsterImage
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
 import de.putzalarm.app.ui.art.Mascot
@@ -110,7 +111,7 @@ fun HomeScreen(
             ComicButton(onAlbum, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
                     val last = child.stickers.lastOrNull()?.let { Monsters[it] } ?: Monsters[0]
-                    GermImage(last.color, last.kind, Modifier.width(5.u))
+                    MonsterImage(last, Modifier.width(5.u))
                     BasicText("Album  ${child.stickers.size} / ${Monsters.size}", style = lilita(2.6))
                 }
             }
