@@ -33,6 +33,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.IntSize
 import de.putzalarm.app.ui.theme.M
 import kotlin.math.roundToInt
@@ -42,21 +44,30 @@ import androidx.compose.ui.unit.IntOffset
 private fun round(w: Float) = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round)
 
 /**
- * Maskottchen „Super Bürsti“: eine schlanke Zahnbürste als Superheld (Kostüm Goldglanz), als
- * fertig gerenderte 3D-Bilder. Mit [pose] macht er immer dieselbe Bewegung, ohne wechselt er alle paar
- * Sekunden zufällig zwischen Winken, Tanzen, Putzen, Boxen, Muskeln zeigen und Jubeln.
+ * Maskottchen „Super Bürsti“: eine Zahnbürste als Superheld mit Heldenkörper, als fertig gerenderte 3D-Bilder
+ * (Körper im Kostüm plus eingefärbter Umhang, siehe [LocalOutfit]). Mit [pose] macht er immer dieselbe Bewegung,
+ * ohne wechselt er alle paar Sekunden zufällig zwischen den Moves, die er schon kann.
+ * [still] zeigt nur ein ruhiges Einzelbild (z. B. als Vorschau im Schrank), [outfit] überschreibt das Outfit.
  */
 @Composable
-fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> Unit)? = null) {
+fun Mascot(
+    modifier: Modifier = Modifier,
+    pose: HeroPose? = null,
+    onTap: (() -> Unit)? = null,
+    outfit: Outfit? = null,
+    still: Boolean = false,
+) {
+    val look = outfit ?: LocalOutfit.current
+    val moves = look.moves.ifEmpty { HeroPose.Basic }
     var current by remember { mutableStateOf(pose ?: HeroPose.WAVE) }
-    var frame by remember { mutableIntStateOf(0) }
+    var frame by remember { mutableIntStateOf(if (still && pose != HeroPose.FLEX) 1 else 0) }
     var poke by remember { mutableIntStateOf(0) }
     // 0 = Lächeln, 1 = Grinsen, 2 = breites Lachen mit glänzenden Zähnen
     var mouth by remember { mutableIntStateOf(0) }
     var clockMs by remember { mutableStateOf(0L) }
-    LaunchedEffect(pose, poke) {
+    if (!still) LaunchedEffect(pose, poke) {
         // Nach einem Antippen springt er sofort in eine neue Bewegung
-        current = pose ?: if (poke == 0) HeroPose.WAVE else HeroPose.Show.filter { it != current }.random()
+        current = pose ?: if (poke == 0) HeroPose.WAVE else moves.filter { it != current }.random()
         var start = 0L
         var next = 3200L
         var t0 = 0L
@@ -73,7 +84,7 @@ fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> 
                 }
                 var elapsed = now - start
                 if (pose == null && elapsed > next) {
-                    current = HeroPose.Show.filter { it != current }.random()
+                    current = moves.filter { it != current }.random()
                     start = now
                     elapsed = 0L
                     next = Random.nextLong(2600L, 4200L)
@@ -83,17 +94,27 @@ fun Mascot(modifier: Modifier = Modifier, pose: HeroPose? = null, onTap: (() -> 
         }
     }
     val tap = if (onTap == null) Modifier else Modifier.clickable(remember { MutableInteractionSource() }, null) { poke++; onTap() }
+    val capeTint = remember(look.cape) { ColorFilter.tint(look.cape, BlendMode.Modulate) }
+    val shown = if (still) pose ?: HeroPose.FLEX else current
     Canvas(modifier.aspectRatio(3f / 4f).then(tap)) {
-        val img = Sprites.hero(current, frame)
+        val fs = Sprites.frameSize
+        val sx = size.width / fs.width
+        val sy = size.height / fs.height
+        fun put(p: Placed, filter: ColorFilter? = null): IntOffset {
+            val dst = IntOffset((p.at.x * sx).roundToInt(), (p.at.y * sy).roundToInt())
+            drawImage(
+                p.img, dstOffset = dst, dstSize = IntSize((p.img.width * sx).roundToInt(), (p.img.height * sy).roundToInt()),
+                filterQuality = FilterQuality.Medium, colorFilter = filter,
+            )
+            return dst
+        }
         drawOval(Color.Black, Offset(size.width * 0.3f, size.height * 0.905f), Size(size.width * 0.42f, size.height * 0.05f), alpha = 0.18f)
-        drawImage(img, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), filterQuality = FilterQuality.Medium)
-        val m = if (current == HeroPose.JUBEL) 2 else mouth
-        if (m > 0) Sprites.heroMouth(current, frame, m)?.let { (crop, at) ->
-            val sx = size.width / img.width
-            val sy = size.height / img.height
+        Sprites.cape(shown, frame)?.let { put(it, capeTint) }
+        put(Sprites.hero(look.costume, shown, frame))
+        val m = if (still) 0 else if (shown == HeroPose.JUBEL) 2 else mouth
+        if (m > 0) Sprites.heroMouth(look.costume, shown, frame, m)?.let { crop ->
+            val dst = put(crop)
             val ms = Sprites.mouthSize
-            val dst = IntOffset((at.x * sx).roundToInt(), (at.y * sy).roundToInt())
-            drawImage(crop, dstOffset = dst, dstSize = IntSize((ms.width * sx).roundToInt(), (ms.height * sy).roundToInt()), filterQuality = FilterQuality.Medium)
             if (m == 2) {
                 // Blitzen an den Zähnen
                 val k = sin(clockMs / 160.0).toFloat().coerceAtLeast(0f)
@@ -124,7 +145,7 @@ fun Star(on: Boolean, modifier: Modifier = Modifier) {
 }
 
 /** Einfache Comic-Symbole, damit Kinder ohne Lesen bedienen können. */
-enum class Icon { PLAY, PAUSE, CLOSE, HOME, CHECK, CAMERA, GALLERY, SUN, MOON, BACK, TRASH, PENCIL }
+enum class Icon { PLAY, PAUSE, CLOSE, HOME, CHECK, CAMERA, GALLERY, SUN, MOON, BACK, TRASH, PENCIL, LOCK, HANGER }
 
 @Composable
 fun IconArt(icon: Icon, modifier: Modifier = Modifier, color: Color = M.Ink) {
@@ -190,6 +211,18 @@ fun DrawScope.drawIconArt(icon: Icon, color: Color) {
                     drawRoundRect(color, Offset(15f, 5f), Size(10f, 6f), CornerRadius(2f), style = Stroke(3f))
                     val b = Path().apply { moveTo(10f, 14f); lineTo(12f, 35f); lineTo(28f, 35f); lineTo(30f, 14f); close() }
                     drawPath(b, color)
+                }
+                Icon.LOCK -> {
+                    drawRoundRect(color, Offset(11f, 6f), Size(18f, 22f), CornerRadius(9f), style = Stroke(4.5f))
+                    drawRoundRect(color, Offset(7f, 17f), Size(26f, 19f), CornerRadius(4f))
+                    drawCircle(Color.White, 2.6f, Offset(20f, 25f))
+                    drawLine(Color.White, Offset(20f, 25f), Offset(20f, 30f), 2.6f, StrokeCap.Round)
+                }
+                Icon.HANGER -> {
+                    val hook = Path().apply { moveTo(16f, 11f); cubicTo(16f, 5f, 25f, 5f, 24f, 11f); cubicTo(23.5f, 14f, 20f, 14f, 20f, 18f) }
+                    drawPath(hook, color, style = Stroke(3.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    val bar = Path().apply { moveTo(20f, 18f); lineTo(36f, 30f); lineTo(4f, 30f); close() }
+                    drawPath(bar, color, style = Stroke(4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
                 Icon.PENCIL -> {
                     rotate(45f, Offset(20f, 20f)) {

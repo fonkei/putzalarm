@@ -18,14 +18,21 @@ enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
     ROBOT("robot", 4, 280), GUITAR("guitar", 4, 170), FLY("fly", 4, 420);
 
     companion object {
-        /** Bewegungen, zwischen denen Super Bürsti im Show-Modus wechselt. */
-        val Show = entries.toList()
+        /** Bewegungen, die Super Bürsti von Anfang an kann; die übrigen schaltet man mit Sternen frei. */
+        val Basic = listOf(FLEX, WAVE, JUBEL, DANCE, BRUSH, BOX, JACK)
     }
 }
 
+/** Kostüme von Super Bürsti (Körperbilder je Kostüm, der Umhang wird extra eingefärbt). */
+enum class Costume(val key: String) { GOLD("gold"), CHROM("chrom"), NEON("neon") }
+
+/** Ein Bild mit seiner Lage im ganzen Bild von Super Bürsti (450 × 600 Bildpunkte). */
+class Placed(val img: ImageBitmap, val at: IntOffset)
+
 /**
  * Fertig gerenderte 3D-Bilder von Super Bürsti und den Monstern aus res/drawable-nodpi.
- * Jedes Bild wird beim ersten Gebrauch geladen und dann behalten; [preload] lädt alle im Hintergrund vor.
+ * Super Bürsti besteht aus zwei Ebenen: dem Körper im Kostüm und dem weißen Umhang, den die App einfärbt.
+ * Jedes Bild wird beim ersten Gebrauch geladen und dann behalten; [preload] lädt ein Kostüm im Hintergrund vor.
  */
 object Sprites {
     // Gleiche Reihenfolge wie die Palette in data/Data.kt und in tools/render_sprites.js
@@ -35,8 +42,11 @@ object Sprites {
     private lateinit var pkg: String
     private val cache = HashMap<String, ImageBitmap>()
 
-    /** Wo der Mund-Ausschnitt (Grinsen/Lachen) auf jedem Bild von Super Bürsti liegt, in Bildpunkten. */
+    /** Wo jedes zugeschnittene Bild und der Mund-Ausschnitt (Grinsen/Lachen) im ganzen Bild liegen. */
+    private var at: Map<String, IntOffset> = emptyMap()
     private var mouthAt: Map<String, IntOffset> = emptyMap()
+    var frameSize = IntSize(450, 600)
+        private set
     var mouthSize = IntSize(84, 64)
         private set
 
@@ -44,27 +54,47 @@ object Sprites {
         res = resources
         pkg = packageName
         runCatching {
-            val id = resources.getIdentifier("hero_mouths", "raw", packageName)
+            val id = resources.getIdentifier("hero_layout", "raw", packageName)
             val o = JSONObject(resources.openRawResource(id).bufferedReader().readText())
-            mouthSize = IntSize(o.getInt("w"), o.getInt("h"))
-            val at = o.getJSONObject("at")
-            mouthAt = at.keys().asSequence().associateWith { k -> at.getJSONArray(k).let { IntOffset(it.getInt(0), it.getInt(1)) } }
+            frameSize = IntSize(o.getInt("w"), o.getInt("h"))
+            mouthSize = IntSize(o.getInt("mw"), o.getInt("mh"))
+            fun JSONObject.offsets() = keys().asSequence().associateWith { k -> getJSONArray(k).let { IntOffset(it.getInt(0), it.getInt(1)) } }
+            at = o.getJSONObject("at").offsets()
+            mouthAt = o.getJSONObject("mouth").offsets()
         }
     }
 
-    /** Mund-Ausschnitt für [mouth] 1 = Grinsen, 2 = Lachen, mit Position im Bild (450 × 600). */
-    fun heroMouth(pose: HeroPose, frame: Int, mouth: Int): Pair<ImageBitmap, IntOffset>? {
-        val base = "hero_${pose.key}_${frame % pose.frames}"
-        val at = mouthAt[base] ?: return null
-        return get(base + if (mouth >= 2) "_laugh" else "_grin") to at
+    private fun frameKey(pose: HeroPose, frame: Int) = "${pose.key}_${frame % pose.frames}"
+
+    fun hero(costume: Costume, pose: HeroPose, frame: Int): Placed {
+        val name = "hero_${costume.key}_${frameKey(pose, frame)}"
+        return Placed(get(name), at[name] ?: IntOffset.Zero)
     }
 
-    fun preload() {
-        for (p in HeroPose.entries) for (i in 0 until p.frames) { hero(p, i); heroMouth(p, i, 1); heroMouth(p, i, 2) }
+    /** Der weiße Umhang zum selben Bild, oder null, wenn er ganz verdeckt ist. */
+    fun cape(pose: HeroPose, frame: Int): Placed? {
+        val name = "cape_${frameKey(pose, frame)}"
+        val pos = at[name] ?: return null
+        return Placed(get(name), pos)
+    }
+
+    /** Mund-Ausschnitt für [mouth] 1 = Grinsen, 2 = Lachen. */
+    fun heroMouth(costume: Costume, pose: HeroPose, frame: Int, mouth: Int): Placed? {
+        val key = frameKey(pose, frame)
+        val pos = mouthAt[key] ?: return null
+        return Placed(get("hero_${costume.key}_${key}" + if (mouth >= 2) "_laugh" else "_grin"), pos)
+    }
+
+    /** Lädt alle Bilder eines Kostüms vor und gibt die Bilder anderer Kostüme frei (bis auf ihr Vorschaubild). */
+    fun preload(costume: Costume) {
+        synchronized(cache) {
+            cache.keys.removeAll { k -> k.startsWith("hero_") && !k.startsWith("hero_${costume.key}_") && !k.endsWith("_flex_0") }
+        }
+        for (p in HeroPose.entries) for (i in 0 until p.frames) {
+            hero(costume, p, i); cape(p, i); heroMouth(costume, p, i, 1); heroMouth(costume, p, i, 2)
+        }
         for (k in GermKind.entries) for (c in palette.indices) for (f in 0..1) get(germName(k, c, f))
     }
-
-    fun hero(pose: HeroPose, frame: Int): ImageBitmap = get("hero_${pose.key}_${frame % pose.frames}")
 
     fun germ(kind: GermKind, color: Color, frame: Int): ImageBitmap = get(germName(kind, colorIndex(color), frame and 1))
 

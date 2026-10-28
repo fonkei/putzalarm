@@ -27,6 +27,18 @@ import de.putzalarm.app.ui.screens.ParentGateScreen
 import de.putzalarm.app.ui.screens.ProfilePickerScreen
 import de.putzalarm.app.ui.screens.ResultScreen
 import de.putzalarm.app.ui.screens.SessionResult
+import de.putzalarm.app.ui.screens.WardrobeScreen
+import de.putzalarm.app.data.outfit
+import de.putzalarm.app.data.newRewards
+import de.putzalarm.app.data.CostumeReward
+import de.putzalarm.app.data.CapeReward
+import de.putzalarm.app.ui.art.Costume
+import de.putzalarm.app.ui.art.LocalOutfit
+import de.putzalarm.app.ui.art.Outfit
+import de.putzalarm.app.ui.art.Sprites
+import androidx.compose.runtime.CompositionLocalProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed interface Screen {
     data class Picker(val editMode: Boolean = false) : Screen
@@ -36,7 +48,20 @@ sealed interface Screen {
     data class Brush(val childId: String, val camera: Boolean) : Screen
     data class Result(val childId: String, val result: SessionResult, val sticker: Int?) : Screen
     data class Album(val childId: String, val highlight: Int? = null, val back: Screen? = null) : Screen
+    data class Wardrobe(val childId: String) : Screen
 }
+
+/** Zu welchem Kind ein Bildschirm gehört (für Super Bürstis Outfit). */
+private val Screen.childId: String?
+    get() = when (this) {
+        is Screen.Home -> childId
+        is Screen.Brush -> childId
+        is Screen.Result -> childId
+        is Screen.Album -> childId
+        is Screen.Wardrobe -> childId
+        is Screen.Edit -> childId
+        else -> null
+    }
 
 @Composable
 fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
@@ -58,7 +83,13 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
         }
     }
 
+    // Bilder für das Kostüm des aktuellen Kindes im Hintergrund vorladen
+    val costume = screen.childId?.let { store.get(it) }?.outfit?.costume ?: Costume.GOLD
+    LaunchedEffect(costume) { withContext(Dispatchers.Default) { Sprites.preload(costume) } }
+
     AnimatedContent(screen, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "screen") { s ->
+        val outfit = s.childId?.let { store.get(it) }?.outfit ?: Outfit()
+        CompositionLocalProvider(LocalOutfit provides outfit) {
         when (s) {
             is Screen.Picker -> ProfilePickerScreen(
                 children = store.children,
@@ -89,6 +120,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     photoDir = store.photoDir,
                     onStart = { startBrushing(c.id) },
                     onAlbum = { screen = Screen.Album(c.id, back = s) },
+                    onWardrobe = { screen = Screen.Wardrobe(c.id) },
                     onSwitch = { screen = Screen.Picker() },
                     greet = voice::say,
                 )
@@ -104,6 +136,16 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     sfx = sfx,
                     onFinished = { r ->
                         val sticker = store.recordSession(c.id, r.monsters, r.stars)
+                        // Ein neues Kostüm oder ein neuer Umhang wird gleich angezogen
+                        store.get(c.id)?.let { now ->
+                            var dressed = now
+                            for (rw in newRewards(c.stars, now.stars)) when (rw) {
+                                is CostumeReward -> dressed = dressed.copy(costume = rw.costume.key)
+                                is CapeReward -> dressed = dressed.copy(cape = rw.cape)
+                                else -> Unit
+                            }
+                            if (dressed != now) store.upsert(dressed)
+                        }
                         screen = Screen.Result(c.id, r, sticker)
                     },
                     onQuit = { screen = Screen.Home(c.id) },
@@ -122,6 +164,15 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
             is Screen.Album -> store.get(s.childId)?.let { c ->
                 AlbumScreen(c, s.highlight, onBack = { screen = s.back ?: Screen.Home(c.id) })
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
+            is Screen.Wardrobe -> store.get(s.childId)?.let { c ->
+                WardrobeScreen(
+                    child = c,
+                    onPick = { costumeKey, cape -> store.upsert(c.copy(costume = costumeKey, cape = cape)) },
+                    onBack = { screen = Screen.Home(c.id) },
+                    say = voice::say,
+                )
+            } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
+        }
         }
     }
 }

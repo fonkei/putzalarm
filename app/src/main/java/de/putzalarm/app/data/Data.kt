@@ -57,6 +57,9 @@ data class Child(
     val sessions: List<Long> = emptyList(),
     /** Alle je gesammelten Sterne (0 bis 3 pro Kieferzone und Putzrunde). */
     val stars: Int = 0,
+    /** Gewähltes Kostüm und Umhang von Super Bürsti (siehe Rewards.kt). */
+    val costume: String = "gold",
+    val cape: Int = 0,
 ) {
     private val days: Set<LocalDate>
         get() = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
@@ -196,6 +199,8 @@ class ProfileStore(context: Context) {
                     monsters = o.optInt("monsters"),
                     sessions = o.optJSONArray("sessions").longs(),
                     stars = o.optInt("stars"),
+                    costume = o.optString("costume", "gold"),
+                    cape = o.optInt("cape"),
                 )
             }
         }
@@ -212,7 +217,8 @@ class ProfileStore(context: Context) {
                     .put("photo", c.photo ?: "").put("avatar", c.avatar)
                     .put("stickers", JSONArray(c.stickers)).put("monsters", c.monsters)
                     .put("sessions", JSONArray(c.sessions))
-                    .put("stars", c.stars),
+                    .put("stars", c.stars)
+                    .put("costume", c.costume).put("cape", c.cape),
             )
         }
         val tmp = File(file.parentFile, file.name + ".tmp")

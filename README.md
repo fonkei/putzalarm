@@ -29,7 +29,9 @@ Technik: Kotlin, Jetpack Compose, CameraX, ML Kit Face Detection. minSdk 26, tar
 
 Super Bürsti und die Monster sind fertig gerenderte 3D-Bilder aus `design/super-buersti-3d-modell.html`
 (in `res/drawable-nodpi`). Neu erzeugen: `node tools/render_sprites.js <pfad/zu/three.min.js>` mit
-three@0.149.0 (z. B. aus `npm pack three@0.149.0`) und Playwright.
+three@0.149.0 (z. B. aus `npm pack three@0.149.0`) und Playwright, danach `python3 tools/to_webp.py`.
+Super Bürsti hat zwei Ebenen: den Körper je Kostüm (`hero_<kostüm>_*`) und den weißen Umhang (`cape_*`),
+den die App in der gewählten Farbe einfärbt. Lage der zugeschnittenen Bilder: `res/raw/hero_layout.json`.
 
 Die Putzmusik ist selbst komponiert: `python3 tools/gen_music.py` (numpy, ffmpeg) erzeugt `res/raw/putzmusik.ogg`.
 

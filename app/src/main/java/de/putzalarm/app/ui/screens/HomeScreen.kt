@@ -55,6 +55,7 @@ fun HomeScreen(
     photoDir: File,
     onStart: () -> Unit,
     onAlbum: () -> Unit,
+    onWardrobe: () -> Unit,
     onSwitch: () -> Unit,
     greet: (String) -> Unit,
 ) {
@@ -108,11 +109,22 @@ fun HomeScreen(
                 style = nunito(2),
             )
             Spacer(Modifier.height(2.u))
-            ComicButton(onAlbum, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
-                    val last = child.stickers.lastOrNull()?.let { Monsters[it] } ?: Monsters[0]
-                    MonsterImage(last, Modifier.width(5.u))
-                    BasicText("Album  ${child.stickers.size} / ${Monsters.size}", style = lilita(2.6))
+            Row(horizontalArrangement = Arrangement.spacedBy(2.u), verticalAlignment = Alignment.CenterVertically) {
+                ComicButton(onAlbum, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
+                        val last = child.stickers.lastOrNull()?.let { Monsters[it] } ?: Monsters[0]
+                        MonsterImage(last, Modifier.width(5.u))
+                        BasicText("Album  ${child.stickers.size} / ${Monsters.size}", style = lilita(2.6))
+                    }
+                }
+                // Bürstis Schrank: Kleiderbügel, Sterne und was als Nächstes frei wird
+                ComicButton(onWardrobe, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
+                        IconArt(Icon.HANGER, Modifier.size(5.u))
+                        de.putzalarm.app.ui.art.Star(true, Modifier.size(3.4.u))
+                        BasicText("${child.stars}", style = lilita(2.6))
+                        de.putzalarm.app.data.nextReward(child.stars)?.let { RewardImage(it, Modifier.height(5.u)) }
+                    }
                 }
             }
         }

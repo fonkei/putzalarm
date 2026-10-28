@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
+import de.putzalarm.app.data.newRewards
 import de.putzalarm.app.ui.art.MonsterImage
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
@@ -53,10 +54,12 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
     val clean = result.zones.count { it }
     val stars = when { result.stars >= 10 -> 3; result.stars >= 6 -> 2; else -> 1 }
     val missed = result.zones.indexOfFirst { !it }
+    val unlocked = newRewards(child.stars - result.stars, child.stars)
     LaunchedEffect(Unit) {
         val sticker = newSticker?.let { Monsters[it] }?.let { if (it.rare) " Wow, ein seltenes Monster: ${it.name}!" else " Neu im Album: ${it.name}!" } ?: ""
         val starLine = if (result.stars == 1) " Ein Stern für dich!" else if (result.stars > 1) " ${result.stars} Sterne für dich!" else ""
-        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + sticker)
+        val reward = unlocked.lastOrNull()?.let { " Und neu für Super Bürsti: ${it.spoken}!" } ?: ""
+        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + sticker + reward)
     }
     BackHandler(onBack = onHome)
     Box(Modifier.fillMaxSize().background(M.Blue).padding(horizontal = 5.u, vertical = 4.u)) {
@@ -111,6 +114,17 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                 } else if (missed >= 0) {
                     Box(Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Yellow, 2.4.u, 0.5.u, 0.8.u).padding(2.u)) {
                         BasicText("Da verstecken sich noch welche. Nächstes Mal erwischst du sie!", style = nunito(1.9))
+                    }
+                }
+                if (unlocked.isNotEmpty()) {
+                    // Neu freigeschaltet: Bilder der neuen Sachen für Super Bürsti
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(M.Mint, 2.4.u, 0.5.u, 0.8.u).padding(1.4.u),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(1.6.u),
+                    ) {
+                        IconArt(Icon.HANGER, Modifier.size(5.u))
+                        unlocked.forEach { RewardImage(it, Modifier.height(9.u)) }
                     }
                 }
                 Spacer(Modifier.weight(1f))
