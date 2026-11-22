@@ -80,7 +80,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
             rendering = true
             monsterVoice?.let { tts.voice = it }
             tts.setPitch(1.45f)
-            tts.setSpeechRate(1.05f)
+            tts.setSpeechRate(0.92f)
             phrases.entries.forEachIndexed { i, (_, spoken) ->
                 tts.synthesizeToFile(spoken, Bundle(), File(dir, "ruf_$i.wav"), "clip$i")
             }

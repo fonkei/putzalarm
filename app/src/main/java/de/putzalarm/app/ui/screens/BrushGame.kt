@@ -38,7 +38,8 @@ enum class Phase { COUNTDOWN, RUN, DONE }
 interface GameEvents {
     fun onCountdown(n: Int) {}
     fun onZone(zone: Int) {}
-    fun onScream(text: String) {}
+    /** Ein Monster will [text] rufen; false, wenn gerade ein anderes redet. */
+    fun onScream(text: String): Boolean = false
     fun onPlopp() {}
     fun onCombo() {}
     fun onIdle() {}
@@ -167,7 +168,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             else -> 0f
         }
         val speed = (26f + Random.nextFloat() * 22f) * u * when { vz > 0f -> 0.6f; vz < 0f -> 0.35f; else -> 1f }
-        val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random() else null
+        val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random().takeIf { events.onScream(it) } else null
         germs += FlyingGerm(
             x = mouth.x + (Random.nextFloat() - 0.5f) * 3f * u,
             y = mouth.y + (Random.nextFloat() - 0.5f) * 1.5f * u,
@@ -178,7 +179,6 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             life = if (vz > 0f) 9f else 1.3f + Random.nextFloat() * 1.1f, scream = scream, vz = vz,
         )
         monsters++
-        if (scream != null) events.onScream(scream)
     }
 
     private fun animate(dt: Float, u: Float, w: Float, h: Float) {
@@ -243,6 +243,30 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             "Tschüss, Zahn!" to "Tschüss, Zahn!",
             "Mein schönes Versteck!" to "Mein schönes Versteck!",
             "Zu sauber hier!" to "Zu sauber hier!",
+            "Ohh... Haland" to "Ohh... Haland",
+            "Wer hat das Licht angemacht?" to "Wer hat das Licht angemacht?",
+            "Das ist nicht fair!" to "Das ist nicht fair!",
+            "Ich bin doch so süß!" to "Ich bin doch so süß!",
+            "Pfefferminz! Bäh!" to "Pfefferminz! Bäh!",
+            "Ich hab mich verlaufen!" to "Ich hab mich verlaufen!",
+            "Mein Zuckerschloss!" to "Mein Zuckerschloss!",
+            "Ich kann nicht schwimmen!" to "Ich kann nicht schwimmen!",
+            "Ich wollte nur kuscheln!" to "Ich wollte nur kuscheln!",
+            "Wo ist mein Bonbon?" to "Wo ist mein Bonbon?",
+            "Abflug!" to "Abflug!",
+            "Nicht kitzeln!" to "Nicht kitzeln!",
+            "Das sag ich meiner Oma!" to "Das sag ich meiner Oma!",
+            "Super Bürsti ist zu stark!" to "Super Bürsti ist zu stark!",
+            "Ich hol den Boss!" to "Ich hol den Boss!",
+            "So ein Schaumschläger!" to "So ein Schaumschläger!",
+            "Ich will nach Hause!" to "Ich will nach Hause!",
+            "Mir ist schwindelig!" to "Mir ist schwindelig!",
+            "Schnell, versteckt euch!" to "Schnell, versteckt euch!",
+            "Schaumparty? Nein danke!" to "Schaumparty? Nein danke!",
+            "Meine Frisur!" to "Meine Frisur!",
+            "Ich war nur zu Besuch!" to "Ich war nur zu Besuch!",
+            "Das war mein Lieblingszahn!" to "Das war mein Lieblingszahn!",
+            "Ich komm nie wieder!" to "Ich komm nie wieder!",
         )
         val ZoneLines = listOf("Los! Erst oben!", "Jetzt die andere Seite oben!", "Jetzt unten!", "Und jetzt die andere Seite unten!")
     }

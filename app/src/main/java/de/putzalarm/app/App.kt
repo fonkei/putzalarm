@@ -162,7 +162,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 )
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Album -> store.get(s.childId)?.let { c ->
-                AlbumScreen(c, s.highlight, onBack = { screen = s.back ?: Screen.Home(c.id) })
+                AlbumScreen(c, s.highlight, onBack = { screen = s.back ?: Screen.Home(c.id) }, say = voice::say)
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Wardrobe -> store.get(s.childId)?.let { c ->
                 WardrobeScreen(

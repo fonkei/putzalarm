@@ -31,26 +31,40 @@ class Sfx(context: Context) {
     private val go = load(R.raw.go)
     private val combo = load(R.raw.combo)
     private val fanfare = load(R.raw.fanfare)
-    private var lastScream = 0L
-    private val words = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private var busyUntil = 0L
+    private val words = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Long>>()
 
-    /** Ein gesprochenes Monster-Wort (siehe [Voice.renderScreams]) als Sound übernehmen. */
+    /** Ein gesprochenes Monster-Wort (siehe [Voice.renderScreams]) als Sound übernehmen, mit seiner Länge in ms. */
     fun addWord(text: String, file: java.io.File) {
-        words[text] = pool.load(file.path, 1)
+        words[text] = pool.load(file.path, 1) to wavMillis(file)
     }
 
+    /** Länge einer WAV-Datei aus ihrem Kopf (Bytes pro Sekunde); im Zweifel 1,5 Sekunden. */
+    private fun wavMillis(file: java.io.File): Long = runCatching {
+        val head = ByteArray(44)
+        file.inputStream().use { it.read(head) }
+        val byteRate = java.nio.ByteBuffer.wrap(head, 28, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN).int
+        if (byteRate <= 0) 1500L else (file.length() - 44) * 1000L / byteRate
+    }.getOrDefault(1500L)
+
     /**
-     * Ein Monster ruft [text] mit kleiner, hoher Stimme. Solange die Wörter noch nicht fertig
-     * gesprochen vorliegen, quiekt es stattdessen. Höchstens alle [gapMs] Millisekunden,
-     * damit die Rufe verständlich bleiben.
+     * Ein Monster ruft [text], jedes mit seiner eigenen Stimme: mal tief und langsam, mal hoch und flott.
+     * Es redet immer nur eins, und es darf ausreden; danach kurz Pause. Gibt false zurück, wenn gerade
+     * ein anderes spricht (dann bekommt das Monster auch keine Sprechblase).
      */
-    fun scream(text: String, gapMs: Long = 650) {
+    fun scream(text: String): Boolean {
         val now = System.currentTimeMillis()
-        if (now - lastScream < gapMs) return
-        lastScream = now
+        if (now < busyUntil) return false
         val word = words[text]
-        if (word != null) play(word, 1f, 1.12f + Random.nextFloat() * 0.18f)
-        else play(screams.random(), 0.6f, 0.95f + Random.nextFloat() * 0.2f)
+        if (word != null) {
+            val rate = Voices.random()
+            play(word.first, 1f, rate)
+            busyUntil = now + (word.second / rate).toLong() + 450L
+        } else {
+            play(screams.random(), 0.6f, 0.95f + Random.nextFloat() * 0.2f)
+            busyUntil = now + 900L
+        }
+        return true
     }
 
     fun plopp() = play(plopp, 0.6f, 0.85f + Random.nextFloat() * 0.5f)
@@ -65,4 +79,9 @@ class Sfx(context: Context) {
     }
 
     fun release() = pool.release()
+
+    private companion object {
+        /** Abspieltempo = Stimmlage: tief und gemütlich bis hoch und quietschig. */
+        val Voices = listOf(0.72f, 0.85f, 1.0f, 1.15f, 1.3f)
+    }
 }

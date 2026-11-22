@@ -5,6 +5,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -204,8 +210,10 @@ private fun ZoneStars(n: Int, zone: Int, modifier: Modifier) {
 
 /** Monster-Album: jedes verjagte Monster wird ein Sticker. Gesperrte zeigen nur ihren Schatten. */
 @Composable
-fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String) -> Unit = {}) {
+    var shown by remember { mutableStateOf<de.putzalarm.app.data.Monster?>(null) }
+    BackHandler { if (shown != null) shown = null else onBack() }
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(M.Pink).padding(horizontal = 5.u, vertical = 3.5.u)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icon.BACK, onBack, size = 6.u)
@@ -234,7 +242,7 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
         }
         Spacer(Modifier.height(0.8.u))
         LazyVerticalGrid(
-            GridCells.Fixed(6),
+            GridCells.Fixed(5),
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = 1.6.u, bottom = 2.u),
             horizontalArrangement = Arrangement.spacedBy(2.u),
@@ -243,11 +251,16 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
             items(Monsters, key = { it.id }) { m ->
                 val owned = m.id in child.stickers
                 val fresh = m.id == highlight
-                Box {
+                Box(
+                    Modifier.clickable(remember { MutableInteractionSource() }, null) {
+                        shown = m
+                        say(if (owned) "Das ist ${m.name}!" else "Den hast du noch nicht. Putz weiter, dann findest du ihn!")
+                    },
+                ) {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .aspectRatio(0.92f)
+                            .aspectRatio(0.82f)
                             .rotate(if (fresh) -3f else 0f)
                             .comic(
                                 when {
@@ -262,8 +275,11 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        MonsterImage(m, Modifier.fillMaxWidth(0.72f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
-                        BasicText(if (owned) m.name else "?", style = lilita(2.2, align = TextAlign.Center), maxLines = 1)
+                        MonsterImage(m, Modifier.fillMaxWidth(0.68f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
+                        // Platz für zwei Zeilen, damit lange Namen ganz zu lesen sind
+                        Box(Modifier.fillMaxWidth().height(6.u), contentAlignment = Alignment.Center) {
+                            BasicText(if (owned) m.name else "?", style = lilita(2.4, align = TextAlign.Center), maxLines = 2)
+                        }
                     }
                     if (fresh) {
                         BasicText(
@@ -276,4 +292,39 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit) {
             }
         }
     }
+    shown?.let { m -> MonsterCard(m, owned = m.id in child.stickers, onClose = { shown = null }) }
+    }
 }
+
+/** Großansicht eines Monsters aus dem Album; antippen schließt sie wieder. */
+@Composable
+private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClose: () -> Unit) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "hüpfen")
+    val bounce by t.animateFloat(
+        0f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "k",
+    )
+    val pop = remember { Animatable(0.4f) }
+    LaunchedEffect(m) { pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow)) }
+    Box(
+        Modifier.fillMaxSize().background(M.Ink.copy(alpha = 0.55f))
+            .clickable(remember { MutableInteractionSource() }, null, onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.scale(pop.value).fillMaxHeight(0.86f).aspectRatio(0.8f)
+                .comic(if (m.rare) RareGold else if (owned) Color.White else M.LockPink, 4.u, 0.7.u, 1.2.u).padding(3.u),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            MonsterImage(
+                m,
+                Modifier.fillMaxWidth(0.9f).offset(y = (-2 * bounce).u).scale(1f + 0.04f * bounce, 1f - 0.04f * bounce),
+                tint = if (owned) null else M.Ink.copy(alpha = 0.25f),
+            )
+            Spacer(Modifier.height(2.u))
+            BasicText(if (owned) m.name else "?", style = lilita(5.4, align = TextAlign.Center), maxLines = 2)
+        }
+    }
+}
+
