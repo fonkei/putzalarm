@@ -62,29 +62,36 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     fun renderScreams(dir: File, phrases: Map<String, String>, onClip: (String, File) -> Unit) {
         val job = {
             dir.mkdirs()
-            val files = mutableMapOf<String, Pair<String, File>>()
-            phrases.entries.forEachIndexed { i, (shown, spoken) -> files["clip$i"] = shown to File(dir, "ruf_$i.wav") }
-            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {}
-                override fun onDone(utteranceId: String?) {
-                    val (shown, file) = files[utteranceId] ?: return
-                    if (file.length() > 1000) onClip(shown, file)
-                    if (utteranceId == "clip${phrases.size - 1}") rendering = false
-                }
-                @Deprecated("Deprecated in Java")
-                override fun onError(utteranceId: String?) {
-                    if (utteranceId == "clip${phrases.size - 1}") rendering = false
-                }
-            })
-            // Kleine, hohe Stimme, aber natürliche Betonung; der Rest kommt beim Abspielen dazu.
-            rendering = true
-            monsterVoice?.let { tts.voice = it }
-            tts.setPitch(1.45f)
-            tts.setSpeechRate(0.92f)
-            phrases.entries.forEachIndexed { i, (_, spoken) ->
-                tts.synthesizeToFile(spoken, Bundle(), File(dir, "ruf_$i.wav"), "clip$i")
+            // Schon gesprochene Rufe bleiben von Start zu Start liegen; neu gesprochen wird nur, was fehlt.
+            // Der Dateiname hängt an Text, Stimme und Stimmlage, damit Änderungen neu gesprochen werden.
+            val tag = "${monsterVoice?.name}|1.45|0.92"
+            val todo = mutableMapOf<String, Pair<String, File>>()
+            phrases.forEach { (shown, spoken) ->
+                val file = File(dir, "ruf_${"$spoken|$tag".hashCode().toUInt()}.wav")
+                if (file.length() > 1000) onClip(shown, file) else todo["clip${todo.size}"] = shown to file
             }
-            restoreVoice()
+            if (todo.isNotEmpty()) {
+                val lastId = "clip${todo.size - 1}"
+                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {}
+                    override fun onDone(utteranceId: String?) {
+                        val (shown, file) = todo[utteranceId] ?: return
+                        if (file.length() > 1000) onClip(shown, file)
+                        if (utteranceId == lastId) rendering = false
+                    }
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        if (utteranceId == lastId) rendering = false
+                    }
+                })
+                // Kleine, hohe Stimme, aber natürliche Betonung; die Stimmlage variiert beim Abspielen.
+                rendering = true
+                monsterVoice?.let { tts.voice = it }
+                tts.setPitch(1.45f)
+                tts.setSpeechRate(0.92f)
+                todo.forEach { (id, v) -> tts.synthesizeToFile(phrases.getValue(v.first), Bundle(), v.second, id) }
+                restoreVoice()
+            }
         }
         if (ready) job() else pendingClips = job
     }
