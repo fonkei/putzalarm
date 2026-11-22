@@ -36,6 +36,10 @@ import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
 import de.putzalarm.app.ui.art.GermImage
 import de.putzalarm.app.ui.art.MonsterImage
+import de.putzalarm.app.ui.art.BackdropBox
+import de.putzalarm.app.data.backdropNow
+import de.putzalarm.app.data.hasJokes
+import de.putzalarm.app.data.outfit
 import de.putzalarm.app.ui.art.BossImage
 import de.putzalarm.app.ui.art.BossBar
 import de.putzalarm.app.data.bossOfWeek
@@ -63,10 +67,11 @@ fun HomeScreen(
     onSwitch: () -> Unit,
     greet: (String) -> Unit,
 ) {
-    LaunchedEffect(child.id) { greet(Greetings.next(child)) }
+    val isDarth = child.outfit.costume == de.putzalarm.app.ui.art.Costume.DARTH
+    LaunchedEffect(child.id) { greet(Greetings.next(child, isDarth)) }
     BackHandler(onBack = onSwitch)
-    DottedBackground {
-        Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).fillMaxHeight(0.86f), onTap = { greet(Greetings.poke(child)) })
+    BackdropBox(child.backdropNow) {
+        Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).fillMaxHeight(0.86f), onTap = { greet(Greetings.poke(child, isDarth)) })
         Row(Modifier.align(Alignment.TopStart).padding(3.5.u), verticalAlignment = Alignment.CenterVertically) {
             ComicButton(onSwitch, bg = Color.White, radius = 10.u, border = 0.45.u, shadow = 0.6.u, padding = 0.4.u) {
                 ChildAvatar(child, photoDir, 6.u)
@@ -213,9 +218,37 @@ private object Greetings {
         )
     }
 
-    fun poke(c: Child): String = pickFresh(pokes(c))
+    /** Witze, sobald sie freigeschaltet sind. */
+    private val Jokes = listOf(
+        "Wie nennt man einen Zahn, der nie putzt? Einen Faulenzahn!",
+        "Welcher Zahn geht nie zur Schule? Der Weisheitszahn. Der weiß schon alles!",
+        "Was ist grün und klopft an die Tür? Ein Klopfsalat!",
+        "Warum hat die Zahnbürste immer gute Laune? Weil sie jeden Tag Schaumparty feiert!",
+        "Treffen sich zwei Zahnbürsten. Sagt die eine: Na, alles sauber?",
+        "Was ist orange und läuft durch den Wald? Eine Wanderine!",
+        "Warum können Geister so schlecht lügen? Weil man durch sie hindurchsehen kann!",
+        "Was sagt der große Zahn zum kleinen Zahn? Du bist aber ein süßer Milchzahn!",
+        "Was macht ein Zahnmonster, wenn ich komme? Es packt die Koffer!",
+        "Was ist das Lieblingsessen von Zahnmonstern? Karies-Kuchen. Aber nicht bei dir!",
+        "Was liegt am Strand und spricht undeutlich? Eine Nuschel!",
+        "Was ist braun, klebrig und läuft durch die Wüste? Ein Karamel!",
+    )
 
-    fun next(c: Child): String = pickFresh(all(c))
+    /** Darth Bürsti spricht ein bisschen anders. */
+    private fun darth(c: Child) = listOf(
+        "Hallo ${c.name}, komm zu der strahlenden Seite der Macht!",
+        "Die Macht der Zahnbürste ist mit dir, ${c.name}!",
+        "Komm zur strahlenden Seite. Da sind die Zähne blitzblank!",
+        "Mein Lichtschwert putzt heller als tausend Sonnen!",
+        "Ich spüre eine Störung in der Macht. Da sind Monster in deinem Mund!",
+    )
+
+    fun poke(c: Child, isDarth: Boolean = false): String = pickFresh(
+        pokes(c) + (if (c.hasJokes) Jokes + Jokes else emptyList()) + (if (isDarth) darth(c).drop(1) else emptyList()),
+    )
+
+    /** Darth Bürsti begrüßt immer mit seinem Spruch von der strahlenden Seite der Macht. */
+    fun next(c: Child, isDarth: Boolean = false): String = if (isDarth) darth(c).first() else pickFresh(all(c))
 
     private fun pickFresh(list: List<String>): String {
         val pick = list.filter { it !in recent }.ifEmpty { list }.random()

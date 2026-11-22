@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import de.putzalarm.app.ui.art.GermKind
+import de.putzalarm.app.ui.art.Pattern
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -17,9 +18,12 @@ import java.time.ZoneId
 import java.time.temporal.IsoFields
 import java.util.UUID
 
+/** Die vier ursprünglichen Formen in ihrer alten Reihenfolge. */
+private val OldKinds = listOf(GermKind.BLOB, GermKind.SPIKE, GermKind.BEAN, GermKind.CYCLOPS)
+
 /** Ein Monster aus dem Sammelalbum. */
 /** [rare]: seltenes Monster mit Krone, gibt es nur nach sehr gründlichem Putzen. */
-data class Monster(val id: Int, val name: String, val color: Color, val kind: GermKind, val rare: Boolean = false)
+data class Monster(val id: Int, val name: String, val color: Color, val kind: GermKind, val rare: Boolean = false, val pattern: Pattern = Pattern.PLAIN)
 
 private val Palette = listOf(
     Color(0xFFFF5D8F), Color(0xFF7BDC5A), Color(0xFFFFB627), Color(0xFF5AC8FA),
@@ -29,17 +33,61 @@ private val Palette = listOf(
 /** Farben der Bakterien, die beim Putzen herausfliegen. */
 val GermColors = Palette.take(5)
 
+/**
+ * Alle Album-Monster. Die Id ist ihr Platz im Album und steht in den gespeicherten Stickern der Kinder:
+ * Neue Monster immer nur hinten anhängen, nie umsortieren oder löschen.
+ */
 val Monsters: List<Monster> = listOf(
     "Zucki", "Säurix", "Klebolf", "Plaquo", "Schmatzi", "Krümel", "Bröselbert", "Kariesto",
     "Schleimi", "Lutschi", "Bonbonix", "Knatschi", "Mampfred", "Kaugummo", "Limonaldo", "Schokolinchen",
     "Gummibärt", "Pommesine", "Klebrina", "Zwickzwack", "Schnuddel", "Fiesling", "Brausebold", "Keksi",
 ).mapIndexed { i, name ->
-    Monster(i, name, Palette[(i * 3) % Palette.size], GermKind.entries[i % GermKind.entries.size])
+    // Die ersten vier Formen, so wie sie vor den neuen Formen verteilt waren
+    Monster(i, name, Palette[(i * 3) % Palette.size], OldKinds[i % 4])
 } + listOf(
     "König Karius", "Glitzerine", "Baron Bonbon", "Lady Lakritz",
     "Prinz Pudding", "Kaiserin Kandis", "Herzog Honig", "Fürst Fruchtgummi",
 ).mapIndexed { i, name ->
-    Monster(24 + i, name, Palette[(i * 5 + 2) % Palette.size], GermKind.entries[(i + 1) % GermKind.entries.size], rare = true)
+    Monster(24 + i, name, Palette[(i * 5 + 2) % Palette.size], OldKinds[(i + 1) % 4], rare = true)
+} + listOf(
+    // Neu im November 2026: Würfel, Sterne, Tropfen, Quallen, dazu gestreift und getupft
+    Triple("Würfelwilli", GermKind.CUBE, Pattern.PLAIN),
+    Triple("Sternchen-Sepp", GermKind.STAR, Pattern.PLAIN),
+    Triple("Tropfi", GermKind.DROP, Pattern.PLAIN),
+    Triple("Qualli", GermKind.JELLY, Pattern.PLAIN),
+    Triple("Streifi", GermKind.BLOB, Pattern.STRIPES),
+    Triple("Tupfine", GermKind.BEAN, Pattern.DOTS),
+    Triple("Zebrazahn", GermKind.CUBE, Pattern.STRIPES),
+    Triple("Punktepaule", GermKind.STAR, Pattern.DOTS),
+    Triple("Klötzchen", GermKind.CUBE, Pattern.DOTS),
+    Triple("Zackenzora", GermKind.SPIKE, Pattern.STRIPES),
+    Triple("Glibberglotz", GermKind.JELLY, Pattern.STRIPES),
+    Triple("Wabbelwilma", GermKind.DROP, Pattern.DOTS),
+    Triple("Kringel", GermKind.CYCLOPS, Pattern.STRIPES),
+    Triple("Tüpfelbert", GermKind.BLOB, Pattern.DOTS),
+    Triple("Streusel", GermKind.STAR, Pattern.STRIPES),
+    Triple("Wackelpudding", GermKind.JELLY, Pattern.PLAIN),
+    Triple("Brummkreisel", GermKind.CYCLOPS, Pattern.DOTS),
+    Triple("Nudelnick", GermKind.BEAN, Pattern.STRIPES),
+    Triple("Popcorna", GermKind.SPIKE, Pattern.DOTS),
+    Triple("Lollipopp", GermKind.DROP, Pattern.STRIPES),
+    Triple("Karamello", GermKind.CUBE, Pattern.PLAIN),
+    Triple("Zimtzicke", GermKind.STAR, Pattern.PLAIN),
+    Triple("Marmeladus", GermKind.JELLY, Pattern.DOTS),
+    Triple("Brezelbär", GermKind.DROP, Pattern.PLAIN),
+    Triple("Waffelwolf", GermKind.CUBE, Pattern.STRIPES),
+    Triple("Sirupsepp", GermKind.BEAN, Pattern.PLAIN),
+    Triple("Honigtropf", GermKind.DROP, Pattern.DOTS),
+    Triple("Plätzchen-Paul", GermKind.STAR, Pattern.DOTS),
+).mapIndexed { i, (name, kind, pattern) ->
+    Monster(32 + i, name, Palette[(i * 3 + 1) % Palette.size], kind, pattern = pattern)
+} + listOf(
+    Triple("Graf Glitzerstreif", GermKind.JELLY, Pattern.STRIPES),
+    Triple("Prinzessin Punkteglanz", GermKind.STAR, Pattern.DOTS),
+    Triple("Sultan Sahnetupf", GermKind.DROP, Pattern.DOTS),
+    Triple("Zar Zuckerwürfel", GermKind.CUBE, Pattern.STRIPES),
+).mapIndexed { i, (name, kind, pattern) ->
+    Monster(60 + i, name, Palette[(i * 3 + 4) % Palette.size], kind, rare = true, pattern = pattern)
 }
 
 /** Boss-Monster: jede Woche (Mo bis So) kommt eins. Besiegt wird es mit den Sternen der ganzen Woche. */
@@ -88,6 +136,9 @@ data class Child(
     val bossWeek: String = "",
     val bossDamage: Int = 0,
     val bossWins: List<Int> = emptyList(),
+    /** Gewählter Hintergrund und Ergebnis-Effekt (Nummern aus Backdrop und Effect). */
+    val backdrop: Int = 0,
+    val effect: Int = 0,
 ) {
     /** Schaden am Boss dieser Woche; in einer neuen Woche fängt es bei 0 an. */
     val bossDamageNow: Int get() = if (bossWeek == weekKey()) bossDamage else 0
@@ -251,6 +302,8 @@ class ProfileStore(context: Context) {
                     bossWeek = o.optString("bossWeek"),
                     bossDamage = o.optInt("bossDamage"),
                     bossWins = o.optJSONArray("bossWins").ints(),
+                    backdrop = o.optInt("backdrop"),
+                    effect = o.optInt("effect"),
                 )
             }
         }
@@ -274,7 +327,8 @@ class ProfileStore(context: Context) {
                     .put("sessions", JSONArray(c.sessions))
                     .put("stars", c.stars)
                     .put("costume", c.costume).put("cape", c.cape)
-                    .put("bossWeek", c.bossWeek).put("bossDamage", c.bossDamage).put("bossWins", JSONArray(c.bossWins)),
+                    .put("bossWeek", c.bossWeek).put("bossDamage", c.bossDamage).put("bossWins", JSONArray(c.bossWins))
+                    .put("backdrop", c.backdrop).put("effect", c.effect),
             )
         }
         synchronized(this) {

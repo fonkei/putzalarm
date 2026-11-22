@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
 import de.putzalarm.app.data.newRewards
+import de.putzalarm.app.data.effectNow
+import de.putzalarm.app.ui.art.CelebrationOverlay
 import de.putzalarm.app.data.BossHp
 import de.putzalarm.app.data.Bosses
 import de.putzalarm.app.data.bossOfWeek
@@ -79,6 +81,7 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
         say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + boss + sticker + reward)
     }
     BackHandler(onBack = onHome)
+    Box(Modifier.fillMaxSize()) {
     Box(Modifier.fillMaxSize().background(M.Blue).padding(horizontal = 5.u, vertical = 4.u)) {
         BasicText(if (clean == 4) "Super geputzt!" else "Gut gemacht!", style = lilita(6.6, Color.White), modifier = Modifier.align(Alignment.TopStart))
         Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(1.2.u)) {
@@ -161,6 +164,9 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                 }
             }
         }
+    }
+    // Freigeschalteter Feier-Effekt über allem (fängt keine Berührungen ab)
+    CelebrationOverlay(child.effectNow)
     }
 }
 

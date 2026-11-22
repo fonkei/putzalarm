@@ -46,6 +46,7 @@ button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
     <button type="button" id="c-gold" aria-pressed="true">Goldglanz</button>
     <button type="button" id="c-chrom" aria-pressed="false">Chrom</button>
     <button type="button" id="c-neon" aria-pressed="false">Neon</button>
+    <button type="button" id="c-darth" aria-pressed="false">Darth Bürsti</button>
   </div>
   <div class="bar" role="group" aria-label="Pose">
     <span>Pose</span>
@@ -246,6 +247,7 @@ function setBody(kind){
   if(bodyParts)hero.remove(bodyParts.g);
   bodyKind=kind;bodyParts=buildBody(kind);hero.add(bodyParts.g);
   ({arms,legs,neon}=bodyParts);
+  {const R=arms.find(a=>a.side>0);saber.position.set(0,R.fistY,0);R.elbow.add(saber);}
   {cape.scale.x=kind==='hero'?1.4:1;cape.position.set(0,kind==='hero'?1.5:1.38,kind==='hero'?-.3:-.25);}
   costume(currentCostume);
 }
@@ -306,16 +308,42 @@ waveCape(0);
 shadowAll(hero);Object.values(mat).forEach(m=>{m.envMapIntensity=.3;});
 hero.position.y=0;
 
+// --- Darth Bürsti: weißer Helm, weiße Maske und ein Lichtschwert, das zugleich Zahnbürste ist ---
+const darthWhite=new THREE.MeshPhysicalMaterial({color:0xf6f8fc,roughness:.12,clearcoat:1,clearcoatRoughness:.04});
+const darthInside=new THREE.MeshStandardMaterial({color:0x3a3d4a,roughness:.6,side:THREE.BackSide});
+const helmet=new THREE.Group();headG.add(helmet);
+{ // Helmschale hinten und seitlich offen nach vorn, unten weit ausgestellt
+  const shell=new THREE.Mesh(new THREE.SphereGeometry(.47,64,32,Math.PI/2+1.05,2*Math.PI-2.1,0,1.9),darthWhite);
+  shell.scale.set(1,1.05,.95);shell.position.set(0,.12,-.04);helmet.add(shell);
+  const shellIn=new THREE.Mesh(shell.geometry,darthInside);shellIn.scale.copy(shell.scale);shellIn.position.copy(shell.position);helmet.add(shellIn);
+  const flareGeo=new THREE.CylinderGeometry(.47,.56,.2,64,1,true,Math.PI/2+1.65,2*Math.PI-3.3);
+  const flare=new THREE.Mesh(flareGeo,darthWhite);flare.position.set(0,-.21,-.04);flare.scale.z=.95;helmet.add(flare);
+  const flareIn=new THREE.Mesh(flareGeo,darthInside);flareIn.position.copy(flare.position);flareIn.scale.copy(flare.scale);helmet.add(flareIn);
+  // Kamm oben in der Mitte
+  const crest=roundBox(.07,.12,.62,.03,darthWhite);crest.position.set(0,.57,-.08);helmet.add(crest);}
+const saber=new THREE.Group();
+{ const hilt=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.34,24),new THREE.MeshPhysicalMaterial({color:0xd6dde8,metalness:.9,roughness:.2}));
+  saber.add(hilt);
+  for(const y of [-.1,-.03,.04]){const r=new THREE.Mesh(new THREE.TorusGeometry(.052,.012,8,24),new THREE.MeshStandardMaterial({color:0x22232b,roughness:.5}));r.rotation.x=Math.PI/2;r.position.y=y;saber.add(r);}
+  const blade=new THREE.Mesh(new THREE.CapsuleGeometry(.032,.62,8,16),new THREE.MeshBasicMaterial({color:0xcff6ff}));blade.position.y=.17+.34;saber.add(blade);
+  const glow=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.64,8,16),new THREE.MeshBasicMaterial({color:0x2fc8ff,transparent:true,opacity:.6,depthWrite:false}));glow.position.y=blade.position.y;saber.add(glow);
+  // An der Spitze: Borsten, denn es ist ja eine Zahnbürste
+  for(let r=0;r<3;r++)for(let c=0;c<2;c++){const t=cap(.026,.1,mat.bristleA);t.rotation.x=Math.PI/2;t.position.set(-.025+c*.05,.68+r*.055,.08);saber.add(t);}
+  saber.rotation.x=1.05;}
+const darthParts=[helmet,saber];
+
 // --- Kostüme ---
 const COSTUMES={
   gold:{suit:0x2f6bff,suitM:.25,trim:0xffc928,cape:0xff3d7f,head:0x3ee0b0,boot:0xff3d7f,glove:0xffffff,b:'#2f6bff',neon:false},
   chrom:{suit:0xb9c4d6,suitM:.95,trim:0xff3d7f,cape:0x2f6bff,head:0x3ee0b0,boot:0x6c7a92,glove:0xd9e1ee,b:'#ff3d7f',neon:false},
   neon:{suit:0x3b1f7a,suitM:.3,trim:0x3ee0b0,cape:0xff3d7f,head:0xffd23f,boot:0x3ee0b0,glove:0x3ee0b0,b:'#3b1f7a',neon:true},
+  darth:{suit:0xf1f3f8,suitM:.15,trim:0x7d889c,cape:0xf1f3f8,head:0xe9eef6,boot:0xf6f8fc,glove:0x2a2b36,b:'#8a96aa',neon:false,mask:0xf6f8fc,darth:true},
 };
 let currentCostume='gold';
 function costume(k){currentCostume=k;const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
   mat.trim.color.setHex(c.trim);mat.cape.color.setHex(c.cape);mat.head.color.setHex(c.head);mat.boot.color.setHex(c.boot);mat.glove.color.setHex(c.glove);
   neon.visible=c.neon;
+  mat.mask.color.setHex(c.mask||0x221436);darthParts.forEach(p=>p.visible=!!c.darth);
   bx.clearRect(0,0,128,128);bx.strokeText('B',64,70);bx.fillStyle=c.b;bx.fillText('B',64,70);bTex.needsUpdate=true;}
 setBody('hero');
 
@@ -394,7 +422,7 @@ function applyMove(t){
   for(const k of ['sway','hop','turn','lean'])moveExtra[k]=(moveExtra[k]||0)+(((A[k]||0)*(1-u)+(B[k]||0)*u)-(moveExtra[k]||0))*.3;
   if(M.spin)moveExtra.turn=pos/n*Math.PI*2;
   hero.position.y=moveExtra.hop;
-  if(A.brush){hero.updateMatrixWorld(true);const R=arms.find(a=>a.side>0);
+  if(A.brush&&currentCostume!=='darth'){hero.updateMatrixWorld(true);const R=arms.find(a=>a.side>0);
     const fist=hero.worldToLocal(R.elbow.localToWorld(new THREE.Vector3(0,R.fistY,0)));
     const dir=new THREE.Vector3(.02,3.0,.24).sub(fist).normalize();
     mini.position.copy(fist).addScaledVector(dir,-.12);mini.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
@@ -424,10 +452,23 @@ function applyPose(t){
 const monInk={pupil:new THREE.MeshPhysicalMaterial({color:0x1d0d22,roughness:.1,clearcoat:1}),
   mouth:new THREE.MeshStandardMaterial({color:0x3b0f24,roughness:.5}),
   tongue:new THREE.MeshPhysicalMaterial({color:0xff7aa2,roughness:.3,clearcoat:.6})};
-function monster(kind,hex){
+// Muster auf der Haut: Streifen oder Tupfen als Bild, das um den Körper gewickelt wird
+function skinPattern(pattern,col){
+  const c=document.createElement('canvas');c.width=512;c.height=256;const x=c.getContext('2d');
+  x.fillStyle='#'+col.getHexString();x.fillRect(0,0,512,256);
+  if(pattern==='stripes'){x.fillStyle='#'+col.clone().lerp(new THREE.Color(0x24123a),.45).getHexString();
+    for(let y=18;y<256;y+=46){x.beginPath();for(let i=0;i<=64;i++){const px=i*8,py=y+Math.sin(i*.6)*5;i?x.lineTo(px,py):x.moveTo(px,py);}
+      for(let i=64;i>=0;i--){const px=i*8,py=y+18+Math.sin(i*.6)*5;x.lineTo(px,py);}x.fill();}}
+  if(pattern==='dots'){x.fillStyle='#'+col.clone().lerp(new THREE.Color(0xffffff),.75).getHexString();
+    for(let row=0;row<6;row++)for(let i=0;i<12;i++){const px=i*43+(row%2)*21+10,py=row*44+20;
+      // Nahe den Polen werden die Tupfen gestaucht, darum dort breiter malen
+      const stretch=1/Math.max(.35,Math.sin(Math.PI*py/256));x.beginPath();x.ellipse(px,py,9*stretch,10,0,0,Math.PI*2);x.fill();}}
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t;
+}
+function monster(kind,hex,pattern='plain'){
   const g=new THREE.Group(),body=new THREE.Group();g.add(body);
   const col=new THREE.Color(hex),dkCol=col.clone().lerp(new THREE.Color(0),.32),ltCol=col.clone().lerp(new THREE.Color(0xffffff),.45);
-  const skin=new THREE.MeshPhysicalMaterial({color:col,roughness:.22,clearcoat:1,clearcoatRoughness:.06,sheen:0});
+  const skin=new THREE.MeshPhysicalMaterial({color:pattern==='plain'?col:0xffffff,map:pattern==='plain'?null:skinPattern(pattern,col),roughness:.22,clearcoat:1,clearcoatRoughness:.06,sheen:0});
   const dk=new THREE.MeshPhysicalMaterial({color:dkCol,roughness:.3,clearcoat:.7});
   const lt=new THREE.MeshPhysicalMaterial({color:ltCol,roughness:.2,clearcoat:1});
   // Körper: Kugel, deren Umriss wie in der App geformt ist
@@ -437,13 +478,27 @@ function monster(kind,hex){
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const n=v.clone().normalize();let s=1;
     if(kind==='blob'||kind==='cyclops'){const k=kind==='cyclops'?7:5;const side=Math.hypot(n.x,n.y);s=1+.115*Math.sin(k*Math.atan2(n.y,n.x)+2)*side;}
     if(kind==='spike'){let h=0;for(const d of tips)h+=Math.pow(Math.max(0,n.dot(d)),28);s=1+.32*h;}
-    v.copy(n).multiplyScalar(R*s);if(kind==='bean')v.set(v.x*.885,v.y*1.057,v.z*.86);p.setXYZ(i,v.x,v.y,v.z);}
-  geo.computeVertexNormals();body.add(new THREE.Mesh(geo,skin));
+    // Neue Formen: Würfel (abgerundet), Stern (fünf dicke Zacken), Tropfen (oben spitz), Qualle (flacher Boden)
+    if(kind==='cube'){const q=Math.pow(Math.pow(Math.abs(n.x),6)+Math.pow(Math.abs(n.y),6)+Math.pow(Math.abs(n.z),6),1/6);s=.92/q;}
+    if(kind==='star'){const side=Math.hypot(n.x,n.y),a=Math.atan2(n.y,n.x)-Math.PI/2;s=1+.3*Math.pow(Math.max(0,Math.cos(a*5)),3)*side*side;}
+    v.copy(n).multiplyScalar(R*s);if(kind==='bean')v.set(v.x*.885,v.y*1.057,v.z*.86);
+    if(kind==='star')v.z*=.78;
+    if(kind==='drop'){const up=Math.max(0,n.y);v.x*=1-up*up*.72;v.z*=1-up*up*.72;v.y*=n.y>0?1.32:.92;v.y-=.03;}
+    if(kind==='jelly'){if(v.y<-R*.75)v.y=-R*.75-(v.y+R*.75)*.12;v.y+=.04;v.x*=1.08;v.z*=1.08;}
+    p.setXYZ(i,v.x,v.y,v.z);}
+  geo.computeVertexNormals();const bodyMesh=new THREE.Mesh(geo,skin);body.add(bodyMesh);
   const RZ=kind==='bean'?.86:1;
-  // Dinge auf die Oberfläche setzen und nach außen drehen
-  const onSurf=(m,x,y,lift)=>{const z=Math.sqrt(Math.max(R*R-x*x-y*y,.001))*RZ;m.position.set(x,y,z+lift);m.lookAt(x*3,y*3,z*3+1);body.add(m);return m;};
+  const ray=new THREE.Raycaster(),NEW=['cube','star','drop','jelly'].includes(kind);
+  // Dinge auf die Oberfläche setzen und nach außen drehen. Bei den neuen Formen wird die Oberfläche angepeilt.
+  const onSurf=(m,x,y,lift)=>{
+    if(NEW){ray.set(new THREE.Vector3(x,y,2),new THREE.Vector3(0,0,-1));const hit=ray.intersectObject(bodyMesh)[0];
+      if(hit){const nn=hit.face.normal.clone();m.position.set(x,y,hit.point.z+lift);m.lookAt(m.position.clone().add(nn.add(new THREE.Vector3(0,0,1)).normalize()));body.add(m);return m;}}
+    const z=Math.sqrt(Math.max(R*R-x*x-y*y,.001))*RZ;m.position.set(x,y,z+lift);m.lookAt(x*3,y*3,z*3+1);body.add(m);return m;};
+  // Qualle: wellige Beinchen unten
+  if(kind==='jelly')for(let k=0;k<5;k++){const x0=(k-2)*.11,c=new THREE.CatmullRomCurve3([new THREE.Vector3(x0,-.17,0),new THREE.Vector3(x0+.03,-.28,.02),new THREE.Vector3(x0-.03,-.38,.03),new THREE.Vector3(x0+.02,-.47,.02)]);
+    body.add(new THREE.Mesh(new THREE.TubeGeometry(c,20,.024,8,false),dk));const tip=ball(.03,lt);tip.position.copy(c.getPoint(1));body.add(tip);}
   // Flecken
-  for(const [x,y,r] of [[.18,-.16,.04],[-.2,-.2,.03]]){const s=ball(r,dk);s.scale.z=.25;onSurf(s,x,y,0);}
+  if(pattern==='plain'&&kind!=='jelly')for(const [x,y,r] of [[.18,-.16,.04],[-.2,-.2,.03]]){const s=ball(r,dk);s.scale.z=.25;onSurf(s,x,y,0);}
   // Augen
   const eyes=kind==='cyclops'?[[0,.1,.14,.065]]:[[-.13,.1,.095,.046],[.13,.1,.095,.046]];
   const pupils=[];
@@ -507,7 +562,7 @@ function frame(){
 }
 // Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
 if(location.search.includes('render')){
-  window.PUTZ={get arms(){return arms;},get legs(){return legs;},setBody,cape,renderer,scene,camera,hero,mons,mat,costume,waveCape,headG,ground,glowDisc,monster,
+  window.PUTZ={get arms(){return arms;},get legs(){return legs;},setBody,cape,saber,renderer,scene,camera,hero,mons,mat,costume,waveCape,headG,ground,glowDisc,monster,
     setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);},setMouth,MOVES,setMove:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyMove(t);return moveExtra;}};
   document.getElementById('loading').remove();return;
 }
@@ -516,7 +571,7 @@ frame();
 
 // --- Knöpfe ---
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
-group('c-',['gold','chrom','neon'],costume);
+group('c-',['gold','chrom','neon','darth'],costume);
 group('b-',['hero','slim'],setBody);
 const POSEKEYS=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly','show'];
 function markPose(){POSEKEYS.forEach(o=>document.getElementById('p-'+o).setAttribute('aria-pressed',show?o==='show':o===pose));}

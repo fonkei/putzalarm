@@ -31,7 +31,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
 
-enum class GermKind { BLOB, SPIKE, BEAN, CYCLOPS }
+/** Formen der Monster. Neue immer hinten anhängen: die Reihenfolge steckt in gespeicherten Alben. */
+enum class GermKind { BLOB, SPIKE, BEAN, CYCLOPS, CUBE, STAR, DROP, JELLY }
+
+/** Hautmuster (gestreift und getupft gibt es als Album-Bild ohne Zappel-Bild). */
+enum class Pattern { PLAIN, STRIPES, DOTS }
 
 fun shade(c: Color, amount: Float): Color =
     if (amount < 0) lerp(c, Color.Black, -amount) else lerp(c, Color.White, amount)
@@ -53,9 +57,10 @@ fun DrawScope.drawGerm(
     look: Float = 0f,
     tint: Color? = null,
     alpha: Float = 1f,
+    pattern: Pattern = Pattern.PLAIN,
 ) {
     if (sizePx < 1f) return
-    val img = Sprites.germ(kind, color, if (wiggle >= 0f) 0 else 1)
+    val img = Sprites.germ(kind, color, if (wiggle >= 0f) 0 else 1, pattern)
     val px = sizePx.roundToInt()
     withTransform({
         translate(center.x, center.y)
@@ -80,9 +85,10 @@ fun GermImage(
     modifier: Modifier = Modifier,
     seed: Float = 2f,
     tint: Color? = null,
+    pattern: Pattern = Pattern.PLAIN,
 ) {
     Canvas(modifier.aspectRatio(1f)) {
-        drawGerm(center, size.minDimension * 0.86f, color, kind, seed, tint = tint)
+        drawGerm(center, size.minDimension * 0.86f, color, kind, seed, tint = tint, pattern = pattern)
     }
 }
 
@@ -93,14 +99,14 @@ fun GermImage(
 @Composable
 fun MonsterImage(m: Monster, modifier: Modifier = Modifier, tint: Color? = null) {
     if (!m.rare) {
-        GermImage(m.color, m.kind, modifier, tint = tint)
+        GermImage(m.color, m.kind, modifier, tint = tint, pattern = m.pattern)
         return
     }
     val t = rememberInfiniteTransition(label = "selten")
     val time by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
     Canvas(modifier.aspectRatio(1f)) {
         val d = size.minDimension
-        drawGerm(Offset(center.x, center.y + d * 0.07f), d * 0.78f, m.color, m.kind, tint = tint)
+        drawGerm(Offset(center.x, center.y + d * 0.07f), d * 0.78f, m.color, m.kind, tint = tint, pattern = m.pattern)
         drawCrown(Offset(center.x, d * 0.16f), d * 0.42f, locked = tint != null)
         if (tint != null) return@Canvas
         val spots = listOf(Offset(0.16f, 0.3f), Offset(0.86f, 0.42f), Offset(0.24f, 0.86f), Offset(0.8f, 0.82f))

@@ -9,7 +9,9 @@ const root = path.resolve(__dirname, '..');
 const out = path.join(root, 'app/src/main/res/drawable-nodpi');
 // Gleiche Reihenfolge wie Palette in data/Data.kt
 const PALETTE = [0xff5d8f, 0x7bdc5a, 0xffb627, 0x5ac8fa, 0xb57bff, 0xff7a5c, 0x3ee0b0, 0xffd23f];
-const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
+// Gleiche Reihenfolge wie GermKind in ui/art/Germ.kt
+const KINDS = ['blob', 'spike', 'bean', 'cyclops', 'cube', 'star', 'drop', 'jelly'];
+const PATTERNS = ['stripes', 'dots'];
 
 (async () => {
   fs.mkdirSync(out, { recursive: true });
@@ -21,7 +23,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
   await page.goto('file://' + path.join(root, 'design/super-buersti-3d-modell.html') + '?render');
   await page.waitForFunction(() => window.PUTZ);
 
-  const shots = await page.evaluate(({ PALETTE, KINDS }) => {
+  const shots = await page.evaluate(({ PALETTE, KINDS, PATTERNS }) => {
     const P = window.PUTZ, T = THREE, res = {};
     const { renderer, scene, hero } = P;
     renderer.setPixelRatio(1);
@@ -66,7 +68,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
       }
       if (x1 < 0) return null;
       x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(W - 1, x1 + 1); y1 = Math.min(H - 1, y1 + 1);
-      return { url: crop(x0, y0, x1 - x0 + 1, y1 - y0 + 1), at: [x0, y0] };
+      return { url: crop(x0, y0, x1 - x0 + 1, y1 - y0 + 1), at: [x0, y0], w: x1 - x0 + 1, h: y1 - y0 + 1 };
     };
     const frames = [];
     const legacy = {
@@ -84,13 +86,20 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
     };
     const at = {}, mouths = {};
     renderer.setSize(W, H, false);
-    for (const costume of ['gold', 'chrom', 'neon']) {
+    for (const costume of ['gold', 'chrom', 'neon', 'darth']) {
       P.costume(costume);
       const restore = layer('body');
       for (const [name, setup] of frames) {
         place(setup());
         P.setMouth(0.1, 0); renderer.render(scene, cam);
-        const t = trimmed(); res[`hero_${costume}_${name}`] = t.url; at[`hero_${costume}_${name}`] = t.at;
+        let t = trimmed();
+        // Darth Bürsti: ragt das Lichtschwert aus dem Bild, zeigt es stärker nach vorn (auf die Kamera zu)
+        const cut = t => t.at[0] <= 0 || t.at[1] <= 0 || (t.at[0] + t.w) >= W || (t.at[1] + t.h) >= H;
+        if (costume === 'darth') for (const rx of [1.45, 1.8, 2.2]) {
+          if (!cut(t)) break;
+          P.saber.rotation.x = rx; renderer.render(scene, cam); t = trimmed();
+        }
+        res[`hero_${costume}_${name}`] = t.url; at[`hero_${costume}_${name}`] = t.at;
         hero.updateMatrixWorld(true);
         const m = P.headG.localToWorld(new T.Vector3(0, -0.23, 0.16)).project(cam);
         const cx = Math.round((m.x + 1) / 2 * W), cy = Math.round((1 - m.y) / 2 * H);
@@ -98,6 +107,7 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
         P.setMouth(0.45, 0); renderer.render(scene, cam); res[`hero_${costume}_${name}_grin`] = crop(cx - MW / 2, cy - MH / 2, MW, MH);
         P.setMouth(1, 0); renderer.render(scene, cam); res[`hero_${costume}_${name}_laugh`] = crop(cx - MW / 2, cy - MH / 2, MW, MH);
         P.setMouth(0.1, 0);
+        P.saber.rotation.x = 1.05;
       }
       restore();
     }
@@ -125,9 +135,17 @@ const KINDS = ['blob', 'spike', 'bean', 'cyclops'];
         res[`germ_${kind}_c${ci}_f${f}`] = grab(ortho, 256, 256);
       });
       scene.remove(m.g);
+      // Gestreift und getupft für das Album (nur ein Bild, die Album-Monster zappeln nicht)
+      PATTERNS.forEach(pt => {
+        const mp = P.monster(kind, hex, pt);
+        mp.g.position.set(0, 0, 0);
+        mp.arms[0].rotation.z = 0.3; mp.arms[1].rotation.z = -0.3;
+        res[`germ_${kind}_${pt}_c${ci}_f0`] = grab(ortho, 256, 256);
+        scene.remove(mp.g);
+      });
     }));
     return res;
-  }, { PALETTE, KINDS });
+  }, { PALETTE, KINDS, PATTERNS });
 
   fs.writeFileSync(path.join(root, 'app/src/main/res/raw/hero_layout.json'), shots.__layout);
   delete shots.__layout;

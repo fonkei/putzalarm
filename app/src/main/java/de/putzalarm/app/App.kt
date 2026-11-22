@@ -32,6 +32,8 @@ import de.putzalarm.app.data.outfit
 import de.putzalarm.app.data.newRewards
 import de.putzalarm.app.data.CostumeReward
 import de.putzalarm.app.data.CapeReward
+import de.putzalarm.app.data.BackdropReward
+import de.putzalarm.app.data.EffectReward
 import de.putzalarm.app.ui.art.Costume
 import de.putzalarm.app.ui.art.LocalOutfit
 import de.putzalarm.app.ui.art.Outfit
@@ -122,7 +124,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     onAlbum = { screen = Screen.Album(c.id, back = s) },
                     onWardrobe = { screen = Screen.Wardrobe(c.id) },
                     onSwitch = { screen = Screen.Picker() },
-                    greet = voice::say,
+                    // Darth Bürsti spricht mit tiefer Stimme
+                    greet = { text -> voice.say(text, if (c.outfit.costume == Costume.DARTH) 0.62f else 1f) },
                 )
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Brush -> store.get(s.childId)?.let { c ->
@@ -142,6 +145,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                             for (rw in newRewards(c.stars, now.stars)) when (rw) {
                                 is CostumeReward -> dressed = dressed.copy(costume = rw.costume.key)
                                 is CapeReward -> dressed = dressed.copy(cape = rw.cape)
+                                is BackdropReward -> dressed = dressed.copy(backdrop = rw.backdrop.ordinal)
+                                is EffectReward -> dressed = dressed.copy(effect = rw.effect.ordinal)
                                 else -> Unit
                             }
                             if (dressed != now) store.upsert(dressed)
@@ -167,7 +172,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
             is Screen.Wardrobe -> store.get(s.childId)?.let { c ->
                 WardrobeScreen(
                     child = c,
-                    onPick = { costumeKey, cape -> store.upsert(c.copy(costume = costumeKey, cape = cape)) },
+                    onPick = { store.upsert(it) },
                     onBack = { screen = Screen.Home(c.id) },
                     say = voice::say,
                 )

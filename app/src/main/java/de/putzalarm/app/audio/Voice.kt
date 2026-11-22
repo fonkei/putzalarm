@@ -103,10 +103,12 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     }
 
     /** Ansage. Unterbricht, was gerade läuft. */
-    fun say(text: String) {
+    fun say(text: String, pitch: Float = 1f) {
         if (!ready) return
         // Während die Monster-Rufe noch entstehen, nicht dazwischenfunken, sondern hinten anstellen.
+        if (pitch != 1f) tts.setPitch(pitch)
         tts.speak(text, if (rendering) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "say")
+        if (pitch != 1f) tts.setPitch(1f)
     }
 
     /** Spricht gerade etwas (z. B. der Schluss-Spruch)? */

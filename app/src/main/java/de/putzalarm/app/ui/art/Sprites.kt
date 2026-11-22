@@ -24,7 +24,7 @@ enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
 }
 
 /** Kostüme von Super Bürsti (Körperbilder je Kostüm, der Umhang wird extra eingefärbt). */
-enum class Costume(val key: String) { GOLD("gold"), CHROM("chrom"), NEON("neon") }
+enum class Costume(val key: String) { GOLD("gold"), CHROM("chrom"), NEON("neon"), DARTH("darth") }
 
 /** Ein Bild mit seiner Lage im ganzen Bild von Super Bürsti (450 × 600 Bildpunkte). */
 class Placed(val img: ImageBitmap, val at: IntOffset)
@@ -93,12 +93,15 @@ object Sprites {
         for (p in HeroPose.entries) for (i in 0 until p.frames) {
             hero(costume, p, i); cape(p, i); heroMouth(costume, p, i, 1); heroMouth(costume, p, i, 2)
         }
-        for (k in GermKind.entries) for (c in palette.indices) for (f in 0..1) get(germName(k, c, f))
+        for (k in GermKind.entries) for (c in palette.indices) for (f in 0..1) get(germName(k, c, f, Pattern.PLAIN))
     }
 
-    fun germ(kind: GermKind, color: Color, frame: Int): ImageBitmap = get(germName(kind, colorIndex(color), frame and 1))
+    /** Gemusterte Monster werden erst geladen, wenn das Album sie zeigt; sie haben nur ein Bild. */
+    fun germ(kind: GermKind, color: Color, frame: Int, pattern: Pattern = Pattern.PLAIN): ImageBitmap =
+        get(germName(kind, colorIndex(color), if (pattern == Pattern.PLAIN) frame and 1 else 0, pattern))
 
-    private fun germName(kind: GermKind, c: Int, f: Int) = "germ_${kind.name.lowercase()}_c${c}_f$f"
+    private fun germName(kind: GermKind, c: Int, f: Int, p: Pattern) =
+        "germ_${kind.name.lowercase()}" + (if (p == Pattern.PLAIN) "" else "_${p.name.lowercase()}") + "_c${c}_f$f"
 
     /** Passende Palettenfarbe; unbekannte Farben bekommen die ähnlichste. */
     private fun colorIndex(c: Color): Int = palette.indices.minBy {
