@@ -140,7 +140,7 @@ fun HomeScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(2.u), verticalAlignment = Alignment.CenterVertically) {
                 ComicButton(onAlbum, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
-                        val last = child.stickers.lastOrNull()?.let { Monsters[it] } ?: Monsters[0]
+                        val last = child.stickers.lastOrNull()?.let { Monsters.getOrNull(it) } ?: Monsters[0]
                         MonsterImage(last, Modifier.width(5.u))
                         BasicText("Album  ${child.stickers.size} / ${Monsters.size}", style = lilita(2.6))
                     }

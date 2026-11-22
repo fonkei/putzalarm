@@ -23,6 +23,8 @@ data class FaceReading(
     val faceW: Float = 0f,
     val faceH: Float = 0f,
     val motion: Float = 0f,
+    /** Wie kräftig geschrubbt wird, mit viel mehr Spielraum nach oben als [motion] (0 bis 1). Für die Monster-Zahl. */
+    val strength: Float = 0f,
     val imageW: Int = 640,
     val imageH: Int = 480,
     val timeMs: Long = 0L,
@@ -46,6 +48,7 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
     private val gx = 28
     private val gy = 18
     private var motion = 0f
+    private var strength = 0f
     private var lastFaceMs = 0L
     private var mx = 0.5f
     private var my = 0.62f
@@ -83,12 +86,16 @@ class FaceMotionAnalyzer : ImageAnalysis.Analyzer {
             val level = ((local - 2.5f) / 8f).coerceIn(0f, 1f)
             // Schnell rauf, etwas langsamer runter, damit kurze Pausen im Schrubb-Rhythmus nicht abbrechen.
             motion = if (level > motion) motion * 0.5f + level * 0.5f else motion * 0.75f + level * 0.25f
+            // [motion] ist bei kräftigem Putzen schnell ganz voll; [strength] reicht viel weiter und zeigt den Unterschied
+            val wide = ((local - 2.5f) / 30f).coerceIn(0f, 1f)
+            strength = strength * 0.85f + wide * 0.15f
         } else {
             mouthGrid.reset()
             refGrid.reset()
             motion *= 0.5f
+            strength *= 0.5f
         }
-        latest.set(FaceReading(hasFace, mx, my, fw, fh, motion, upW, upH, now))
+        latest.set(FaceReading(hasFace, mx, my, fw, fh, motion, strength, upW, upH, now))
 
         detector.process(InputImage.fromMediaImage(media, rot))
             .addOnSuccessListener { faces ->

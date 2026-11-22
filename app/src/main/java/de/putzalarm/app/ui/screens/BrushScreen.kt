@@ -170,7 +170,8 @@ fun BrushScreen(
                 val target = if (cameraOk && fresh && r.hasFace) toView(r, w, h) else Offset(w / 2, h * 0.55f)
                 val m = track.mouth
                 track.mouth = if (m == Offset.Zero) target else m + (target - m) * 0.35f
-                game.step(dt, active, track.mouth, unitPx, w, h)
+                val intensity = if (!cameraOk) 0.5f else if (face) r.strength else 0f
+                game.step(dt, active, intensity, track.mouth, unitPx, w, h)
             }
         }
     }

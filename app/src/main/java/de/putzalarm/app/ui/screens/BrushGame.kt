@@ -91,7 +91,8 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
 
     val result get() = SessionResult(monsters, zoneDone.toList(), zoneStars.toList())
 
-    fun step(dt: Float, active: Boolean, mouth: Offset, unitPx: Float, w: Float, h: Float) {
+    /** [intensity]: wie kräftig gerade geschrubbt wird (0 bis 1); davon hängt ab, wie viele Monster herausfliegen. */
+    fun step(dt: Float, active: Boolean, intensity: Float, mouth: Offset, unitPx: Float, w: Float, h: Float) {
         time += dt
         when (phase) {
             Phase.COUNTDOWN -> {
@@ -125,11 +126,12 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                     idleHintT += dt
                     if (idleHintT > 6f) { idleHintT = 0f; events.onIdle() }
                 } else idleHintT = 4f
+                // Jedes herausfliegende Monster zählt. Wie viele es pro Sekunde sind, hängt davon ab, wie kräftig
+                // geschrubbt wird (0,6 bis 3 pro Sekunde) und von der Combo; so ist die Zahl jedes Mal anders.
                 if (active) {
-                    spawnAcc += dt
-                    val every = 0.42f / (0.7f + 0.3f * combo)
-                    while (spawnAcc >= every) {
-                        spawnAcc -= every
+                    spawnAcc += dt * (0.6f + 2.4f * intensity.coerceIn(0f, 1f)) * (0.8f + 0.12f * combo)
+                    while (spawnAcc >= 1f) {
+                        spawnAcc -= 1f
                         spawn(mouth, unitPx)
                     }
                 }

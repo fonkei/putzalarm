@@ -9,6 +9,7 @@ import de.putzalarm.app.ui.art.GermKind
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -178,6 +179,7 @@ class ProfileStore(context: Context) {
     }
 
     private val file = File(context.filesDir, "kinder.json")
+    private val backup = File(context.filesDir, "kinder.sicherung.json")
     val photoDir = File(context.filesDir, "fotos").apply { mkdirs() }
 
     var children by mutableStateOf(load())
@@ -218,9 +220,20 @@ class ProfileStore(context: Context) {
         return fresh
     }
 
-    private fun load(): List<Child> = try {
-        if (!file.exists()) emptyList() else {
-            val arr = JSONArray(file.readText())
+    /**
+     * Lädt die Profile. Ist die Datei kaputt, kommt die Sicherung von vor dem letzten Speichern dran;
+     * die kaputte Datei wird nie überschrieben, sondern mit Zeitstempel beiseitegelegt.
+     */
+    private fun load(): List<Child> {
+        if (!file.exists() && !backup.exists()) return emptyList()
+        parse(file)?.let { return it }
+        if (file.exists()) file.copyTo(File(file.parentFile, "kinder.kaputt-${System.currentTimeMillis()}.json"), overwrite = false)
+        return parse(backup) ?: emptyList()
+    }
+
+    private fun parse(f: File): List<Child>? = try {
+        if (!f.exists()) null else {
+            val arr = JSONArray(f.readText())
             (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
                 Child(
@@ -242,9 +255,14 @@ class ProfileStore(context: Context) {
             }
         }
     } catch (e: Exception) {
-        emptyList()
+        null
     }
 
+    /**
+     * Speichert sicher: erst die bisherige, lesbare Datei als Sicherung kopieren, dann in eine Zwischendatei
+     * schreiben, auf die Platte zwingen und erst dann umbenennen. So geht nie mehr als die letzte Änderung verloren.
+     * Neue Felder kommen immer mit Standardwert dazu, alte werden nie umbenannt (sonst wären Daten weg).
+     */
     private fun save() {
         val arr = JSONArray()
         for (c in children) {
@@ -259,9 +277,18 @@ class ProfileStore(context: Context) {
                     .put("bossWeek", c.bossWeek).put("bossDamage", c.bossDamage).put("bossWins", JSONArray(c.bossWins)),
             )
         }
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(arr.toString())
-        tmp.renameTo(file)
+        synchronized(this) {
+            if (parse(file) != null) file.copyTo(backup, overwrite = true)
+            val tmp = File(file.parentFile, file.name + ".tmp")
+            FileOutputStream(tmp).use { out ->
+                out.write(arr.toString().toByteArray())
+                out.fd.sync()
+            }
+            if (!tmp.renameTo(file)) {
+                tmp.copyTo(file, overwrite = true)
+                tmp.delete()
+            }
+        }
     }
 }
 
