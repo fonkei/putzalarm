@@ -95,7 +95,7 @@ const PATTERNS = ['stripes', 'dots'];
         let t = trimmed();
         // Darth Bürsti: ragt das Lichtschwert aus dem Bild, zeigt es stärker nach vorn (auf die Kamera zu)
         const cut = t => t.at[0] <= 0 || t.at[1] <= 0 || (t.at[0] + t.w) >= W || (t.at[1] + t.h) >= H;
-        if (costume === 'darth') for (const rx of [1.45, 1.8, 2.2]) {
+        if (costume === 'darth') for (const rx of [1.45, 1.8, 2.2, 2.6, 3.0]) {
           if (!cut(t)) break;
           P.saber.rotation.x = rx; renderer.render(scene, cam); t = trimmed();
         }

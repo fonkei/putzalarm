@@ -111,7 +111,7 @@ fun Mascot(
         drawOval(Color.Black, Offset(size.width * 0.3f, size.height * 0.905f), Size(size.width * 0.42f, size.height * 0.05f), alpha = 0.18f)
         Sprites.cape(shown, frame)?.let { put(it, capeTint) }
         put(Sprites.hero(look.costume, shown, frame))
-        val m = if (still) 0 else if (shown == HeroPose.JUBEL) 2 else mouth
+        val m = if (still || look.costume == Costume.DARTH) 0 else if (shown == HeroPose.JUBEL) 2 else mouth
         if (m > 0) Sprites.heroMouth(look.costume, shown, frame, m)?.let { crop ->
             val dst = put(crop)
             val ms = Sprites.mouthSize
