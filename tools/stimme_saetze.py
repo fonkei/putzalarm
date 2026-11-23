@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Erzeugt die gesprochenen Sätze der App einmal mit ElevenLabs als MP3 (läuft in GitHub Actions).
+Listet alle festen Sätze der App, die als echte Aufnahme gesprochen werden sollen (z. B. mit VoiceStudio auf dem PC).
 
 Rollen:
   buersti  Super Bürsti, heldenhaft
@@ -12,17 +12,16 @@ wird er weiter an , und : zerlegt. Teile mit Kindernamen, Zahlen
 oder anderen Einsetzungen bleiben weg; die spricht die App wie bisher mit der Gerätestimme.
 Die App zerlegt genauso (siehe Voice.kt: sentences(), parts() und norm()), daher müssen beide Regeln gleich bleiben.
 
-Ergebnis: app/src/main/assets/stimme/index.json und die MP3s daneben. Schon erzeugte Dateien
-bleiben liegen, neu erzeugt wird nur, was fehlt oder dessen Stimme in tools/voices.json geändert wurde.
+  python3 tools/stimme_saetze.py           # schreibt tools/stimme_saetze.json (Rolle, Text, Ziel-Datei)
+  python3 tools/stimme_saetze.py --index   # nachdem die MP3s abgelegt sind: assets/stimme/index.json bauen
 
-  python3 tools/make_voices.py --dry-run   # nur auflisten und Zeichen zählen
+Die App spielt nur Sätze ab, die im Index stehen; alles andere spricht weiter die Gerätestimme.
 """
-import hashlib, json, os, re, sys, time, urllib.request, urllib.error
+import hashlib, json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "app/src/main/java/de/putzalarm/app")
 OUT = os.path.join(ROOT, "app/src/main/assets/stimme")
-CONF = json.load(open(os.path.join(ROOT, "tools/voices.json"), encoding="utf-8"))
 
 LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 DYN = re.compile(r'\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_.]*')
@@ -100,68 +99,44 @@ def lines():
     return roles
 
 
-def tts(text, role):
-    c = CONF[role]
-    model = CONF.get("model", "eleven_v3")
-    spoken = (c.get("tag", "") + " " + text).strip() if model == "eleven_v3" else text
-    body = {"text": spoken, "model_id": model, "language_code": "de",
-            "voice_settings": c.get("settings", {"stability": 0.5, "similarity_boost": 0.75})}
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{c['voice']}?output_format=mp3_22050_32"
-    for attempt in range(5):
-        req = urllib.request.Request(url, json.dumps(body).encode(), {
-            "xi-api-key": os.environ["ELEVENLABS_API_KEY"], "Content-Type": "application/json", "Accept": "audio/mpeg"})
-        try:
-            with urllib.request.urlopen(req, timeout=60) as r:
-                return r.read()
-        except urllib.error.HTTPError as e:
-            msg = e.read().decode(errors="replace")[:300]
-            if e.code in (429, 500, 502, 503) and attempt < 4:
-                time.sleep(3 * (attempt + 1)); continue
-            sys.exit(f"ElevenLabs {e.code} bei '{text}' ({role}): {msg}")
+ROLES = {
+    "buersti": "Super Bürsti, heldenhaft und fröhlich",
+    "darth": "Darth Bürsti, tief und feierlich",
+    "monster1": "Monster, ängstlich (Stimme 1)",
+    "monster2": "Monster, ängstlich (Stimme 2)",
+    "monster3": "Monster, ängstlich (Stimme 3)",
+}
 
 
-def main():
-    dry = "--dry-run" in sys.argv
+def file_for(role, text):
+    return f"{role}/{hashlib.sha1(norm(text).encode()).hexdigest()[:12]}.mp3"
+
+
+def export():
+    """Schreibt tools/stimme_saetze.json: welche Sätze in welcher Stimme gebraucht werden und wohin die MP3 gehört."""
     roles = lines()
-    os.makedirs(OUT, exist_ok=True)
-    ip = os.path.join(OUT, "index.json")
-    old = json.load(open(ip, encoding="utf-8")) if os.path.exists(ip) else {}
-    new = {"_meta": {}}
-    total = todo_chars = 0
-    for role, texts in roles.items():
-        c = CONF[role]
-        meta = f"{c['voice']}|{CONF.get('model')}|{c.get('tag','')}|{json.dumps(c.get('settings',{}), sort_keys=True)}"
-        same = old.get("_meta", {}).get(role) == meta
-        new["_meta"][role] = meta
-        entries = {}
-        os.makedirs(os.path.join(OUT, role), exist_ok=True)
+    out = [{"rolle": r, "stimme": ROLES[r], "text": t, "datei": "app/src/main/assets/stimme/" + file_for(r, t)}
+           for r, texts in roles.items() for t in texts]
+    json.dump(out, open(os.path.join(ROOT, "tools/stimme_saetze.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print(f"{len(out)} Sätze, {sum(len(o['text']) for o in out)} Zeichen -> tools/stimme_saetze.json")
+
+
+def index():
+    """Baut assets/stimme/index.json aus den MP3s, die schon da sind. Nur was eine Datei hat, spielt die App ab."""
+    roles = lines()
+    new, n = {}, 0
+    for r, texts in roles.items():
+        ent = {}
         for t in texts:
-            k = norm(t)
-            name = f"{role}/{hashlib.sha1(k.encode()).hexdigest()[:12]}.mp3"
-            path = os.path.join(OUT, name)
-            total += len(t)
-            if not (same and old.get(role, {}).get(k) == name and os.path.exists(path)):
-                todo_chars += len(t)
-                if dry:
-                    print(f"[{role}] {t}")
-                else:
-                    open(path, "wb").write(tts(t, role))
-                    print(f"[{role}] {t}", flush=True)
-            entries[k] = name
-        new[role] = entries
-    print(f"{sum(len(v) for v in roles.values())} Sätze, {total} Zeichen gesamt, davon neu zu erzeugen: {todo_chars} Zeichen")
-    if dry:
-        return
-    # Nicht mehr gebrauchte Dateien entfernen
-    keep = {n for r in roles for n in new[r].values()}
-    for role in os.listdir(OUT):
-        d = os.path.join(OUT, role)
-        if os.path.isdir(d):
-            for f in os.listdir(d):
-                if f"{role}/{f}" not in keep:
-                    os.remove(os.path.join(d, f))
-    json.dump(new, open(ip, "w", encoding="utf-8"), ensure_ascii=False, indent=1, sort_keys=True)
+            f = file_for(r, t)
+            if os.path.exists(os.path.join(OUT, f)):
+                ent[norm(t)] = f; n += 1
+        if ent:
+            new[r] = ent
+    os.makedirs(OUT, exist_ok=True)
+    json.dump(new, open(os.path.join(OUT, "index.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1, sort_keys=True)
+    print(f"{n} Aufnahmen im Index")
 
 
 if __name__ == "__main__":
-    main()
+    index() if "--index" in sys.argv else export()

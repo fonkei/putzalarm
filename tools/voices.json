@@ -1,8 +1,0 @@
-{
- "model": "eleven_v3",
- "buersti":  {"voice": "TxGEqnHWrfWFTfGW9XjX", "tag": "[excited]", "settings": {"stability": 0.5, "similarity_boost": 0.75}},
- "darth":    {"voice": "2EiwWnXFnvU5JabPnv8n", "tag": "[dramatic]", "settings": {"stability": 0.5, "similarity_boost": 0.75}},
- "monster1": {"voice": "jBpfuIE2acCO8z3wKNLl", "tag": "[scared]", "settings": {"stability": 0.0, "similarity_boost": 0.75}},
- "monster2": {"voice": "zrHiDhphv9ZnVXBqCLjz", "tag": "[scared]", "settings": {"stability": 0.0, "similarity_boost": 0.75}},
- "monster3": {"voice": "N2lVS1w4EtoT3dr4eOWO", "tag": "[scared]", "settings": {"stability": 0.0, "similarity_boost": 0.75}}
-}

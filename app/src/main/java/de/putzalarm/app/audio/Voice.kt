@@ -12,7 +12,7 @@ import java.util.Locale
 
 /**
  * Sprachansagen. Feste Sätze kommen als fertige Aufnahmen aus assets/stimme (erzeugt mit
- * tools/make_voices.py über ElevenLabs), alles andere, z. B. Namen und Zahlen, spricht die Android-Sprachsynthese.
+ * tools/stimme_saetze.py z. B. mit VoiceStudio), alles andere, z. B. Namen und Zahlen, spricht die Android-Sprachsynthese.
  * Fehlen die Aufnahmen, spricht die Sprachsynthese alles wie früher. Ersetzt Text für Kinder, die noch nicht lesen.
  * Nimmt die natürlichste deutsche Stimme, die das Gerät hat. Fehlt die Sprachsynthese, bleibt die App stumm.
  */
@@ -213,7 +213,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     }
 
     companion object {
-        // Gleiche Regeln wie tools/make_voices.py (sentences, parts, norm)
+        // Gleiche Regeln wie tools/stimme_saetze.py (sentences, parts, norm)
         private val Sentence = Regex("[^.!?]+[.!?]*")
         private val Part = Regex("[^,:]+[,:]*")
         fun norm(s: String) = s.lowercase(Locale.ROOT).replace(Regex("[^\\p{L}\\p{N} ]"), " ").replace(Regex(" +"), " ").trim()
