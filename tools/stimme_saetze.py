@@ -73,7 +73,9 @@ def fixed_clauses(texts):
     for t in texts:
         for sen in sentences(DYN.sub("\0", t)):
             # Ganzer Satz, wenn nichts eingesetzt wird; sonst nur die festen Satzteile drumherum
-            for c in ([sen] if "\0" not in sen else [p for p in parts(sen) if "\0" not in p]):
+            # Steckt im Satzteil noch eine Einsetzung, werden die festen Stücke davor und danach einzeln aufgenommen
+            # ("Hallo $n!" -> "Hallo"); die App spricht nur den Namen bzw. die Zahl mit der Gerätestimme.
+            for c in ([sen] if "\0" not in sen else [f.strip() for p in parts(sen) for f in p.split("\0")]):
                 k = norm(c)
                 if not k or k in seen or re.search(r'[{}()<>=]', c) or k in ("else", "neu", "plopp"):
                     continue

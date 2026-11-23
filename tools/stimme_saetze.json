@@ -2,8 +2,26 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Den Boss",
+  "datei": "app/src/main/assets/stimme/buersti/7232843f9a19.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "hast du diese Woche schon besiegt.",
+  "datei": "app/src/main/assets/stimme/buersti/4a250adc0f24.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Super!",
   "datei": "app/src/main/assets/stimme/buersti/8451ba8a14d7.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Das ist",
+  "datei": "app/src/main/assets/stimme/buersti/90b1d6735f1d.mp3"
  },
  {
   "rolle": "buersti",
@@ -26,6 +44,12 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Hallo",
+  "datei": "app/src/main/assets/stimme/buersti/fd4cef7a4e60.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Die Monster warten schon.",
   "datei": "app/src/main/assets/stimme/buersti/df952c7d2fc4.mp3"
  },
@@ -44,8 +68,26 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Tage in Folge geputzt",
+  "datei": "app/src/main/assets/stimme/buersti/ca12e4b1cdb9.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Album",
+  "datei": "app/src/main/assets/stimme/buersti/0323809aff09.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Ich bin Super Bürsti.",
   "datei": "app/src/main/assets/stimme/buersti/d15099c8906a.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Hey",
+  "datei": "app/src/main/assets/stimme/buersti/7f550a9f4c44.mp3"
  },
  {
   "rolle": "buersti",
@@ -116,6 +158,12 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "ist da.",
+  "datei": "app/src/main/assets/stimme/buersti/53a6a0131211.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Alle Monster in Deckung!",
   "datei": "app/src/main/assets/stimme/buersti/33df4b0615f6.mp3"
  },
@@ -176,6 +224,12 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Hallo Putz-Held",
+  "datei": "app/src/main/assets/stimme/buersti/ad9a43cd056e.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Schnapp dir deine Bürste, und los!",
   "datei": "app/src/main/assets/stimme/buersti/b48f89fd70bb.mp3"
  },
@@ -184,6 +238,12 @@
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Tschakka!",
   "datei": "app/src/main/assets/stimme/buersti/dbf3c3c01eff.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "und Super Bürsti,",
+  "datei": "app/src/main/assets/stimme/buersti/456ae44adc14.mp3"
  },
  {
   "rolle": "buersti",
@@ -254,8 +314,26 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Schon",
+  "datei": "app/src/main/assets/stimme/buersti/a581021a64e8.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Tage hintereinander geputzt.",
+  "datei": "app/src/main/assets/stimme/buersti/a84f4605f169.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Du bist ein echter Held!",
   "datei": "app/src/main/assets/stimme/buersti/731d4043006a.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Monster im Album.",
+  "datei": "app/src/main/assets/stimme/buersti/6bdeb01bbc8a.mp3"
  },
  {
   "rolle": "buersti",
@@ -584,8 +662,26 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Sterne für dich!",
+  "datei": "app/src/main/assets/stimme/buersti/e2740c913aa1.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Und neu für Super Bürsti:",
   "datei": "app/src/main/assets/stimme/buersti/636fe3273dde.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Und du hast den Boss",
+  "datei": "app/src/main/assets/stimme/buersti/6aab42902f36.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "besiegt!",
+  "datei": "app/src/main/assets/stimme/buersti/65670c51c175.mp3"
  },
  {
   "rolle": "buersti",
@@ -598,6 +694,18 @@
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Super geputzt!",
   "datei": "app/src/main/assets/stimme/buersti/90b6a992b755.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Du hast",
+  "datei": "app/src/main/assets/stimme/buersti/0c030919e957.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Monster verjagt!",
+  "datei": "app/src/main/assets/stimme/buersti/748d71ffb5bc.mp3"
  },
  {
   "rolle": "buersti",
@@ -638,6 +746,18 @@
  {
   "rolle": "buersti",
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Noch",
+  "datei": "app/src/main/assets/stimme/buersti/4d05f588ca7a.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "Sterne,",
+  "datei": "app/src/main/assets/stimme/buersti/d7198e1fd16f.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "dann ist das frei!",
   "datei": "app/src/main/assets/stimme/buersti/2e9510b06ef2.mp3"
  },
@@ -658,6 +778,12 @@
   "stimme": "Super Bürsti, heldenhaft und fröhlich",
   "text": "Fertig!",
   "datei": "app/src/main/assets/stimme/buersti/54e0d1a7115f.mp3"
+ },
+ {
+  "rolle": "buersti",
+  "stimme": "Super Bürsti, heldenhaft und fröhlich",
+  "text": "× Combo!",
+  "datei": "app/src/main/assets/stimme/buersti/2fb0c35b296f.mp3"
  },
  {
   "rolle": "buersti",
@@ -692,8 +818,26 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Den Boss",
+  "datei": "app/src/main/assets/stimme/darth/7232843f9a19.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "hast du diese Woche schon besiegt.",
+  "datei": "app/src/main/assets/stimme/darth/4a250adc0f24.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Super!",
   "datei": "app/src/main/assets/stimme/darth/8451ba8a14d7.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Das ist",
+  "datei": "app/src/main/assets/stimme/darth/90b1d6735f1d.mp3"
  },
  {
   "rolle": "darth",
@@ -716,6 +860,12 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Hallo",
+  "datei": "app/src/main/assets/stimme/darth/fd4cef7a4e60.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Die Monster warten schon.",
   "datei": "app/src/main/assets/stimme/darth/df952c7d2fc4.mp3"
  },
@@ -734,8 +884,26 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Tage in Folge geputzt",
+  "datei": "app/src/main/assets/stimme/darth/ca12e4b1cdb9.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Album",
+  "datei": "app/src/main/assets/stimme/darth/0323809aff09.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Ich bin Super Bürsti.",
   "datei": "app/src/main/assets/stimme/darth/d15099c8906a.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Hey",
+  "datei": "app/src/main/assets/stimme/darth/7f550a9f4c44.mp3"
  },
  {
   "rolle": "darth",
@@ -806,6 +974,12 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "ist da.",
+  "datei": "app/src/main/assets/stimme/darth/53a6a0131211.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Alle Monster in Deckung!",
   "datei": "app/src/main/assets/stimme/darth/33df4b0615f6.mp3"
  },
@@ -866,6 +1040,12 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Hallo Putz-Held",
+  "datei": "app/src/main/assets/stimme/darth/ad9a43cd056e.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Schnapp dir deine Bürste, und los!",
   "datei": "app/src/main/assets/stimme/darth/b48f89fd70bb.mp3"
  },
@@ -874,6 +1054,12 @@
   "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Tschakka!",
   "datei": "app/src/main/assets/stimme/darth/dbf3c3c01eff.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "und Super Bürsti,",
+  "datei": "app/src/main/assets/stimme/darth/456ae44adc14.mp3"
  },
  {
   "rolle": "darth",
@@ -944,8 +1130,26 @@
  {
   "rolle": "darth",
   "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Schon",
+  "datei": "app/src/main/assets/stimme/darth/a581021a64e8.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Tage hintereinander geputzt.",
+  "datei": "app/src/main/assets/stimme/darth/a84f4605f169.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
   "text": "Du bist ein echter Held!",
   "datei": "app/src/main/assets/stimme/darth/731d4043006a.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Monster im Album.",
+  "datei": "app/src/main/assets/stimme/darth/6bdeb01bbc8a.mp3"
  },
  {
   "rolle": "darth",

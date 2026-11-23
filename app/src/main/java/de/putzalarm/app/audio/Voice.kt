@@ -164,7 +164,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         for (sen in sentences(text)) {
             val whole = rec[norm(sen)]
             if (whole != null) { segs += true to whole; continue }
-            for (p in parts(sen)) rec[norm(p)]?.let { segs += true to it } ?: speak(p)
+            for (p in parts(sen)) rec[norm(p)]?.let { segs += true to it } ?: fit(p.split(' ').filter { it.isNotBlank() }, rec, segs, ::speak)
         }
         if (segs.none { it.first }) {
             // Keine Aufnahme dabei: wie früher alles in einem Rutsch mit der Gerätestimme
@@ -172,6 +172,22 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
             queue += false to text
         } else queue += segs
         next()
+    }
+
+    /**
+     * Satzteil ohne eigene Aufnahme, z. B. "Hallo Maja!": vorn und hinten das längste aufgenommene Stück
+     * nehmen ("Hallo"), nur der Rest (der Name, eine Zahl) geht an die Gerätestimme.
+     */
+    private fun fit(words: List<String>, rec: Map<String, String>, segs: MutableList<Pair<Boolean, String>>, speak: (String) -> Unit) {
+        if (words.isEmpty()) return
+        fun clip(ws: List<String>) = norm(ws.joinToString(" ")).takeIf { it.isNotEmpty() }?.let { rec[it] }
+        clip(words)?.let { segs += true to it; return }
+        for (i in words.size - 1 downTo 1) clip(words.subList(0, i))?.let { segs += true to it; fit(words.subList(i, words.size), rec, segs, speak); return }
+        for (i in 1 until words.size) clip(words.subList(i, words.size))?.let {
+            val tail = it
+            fit(words.subList(0, i), rec, segs, speak); segs += true to tail; return
+        }
+        speak(words.joinToString(" "))
     }
 
     private fun next() {
