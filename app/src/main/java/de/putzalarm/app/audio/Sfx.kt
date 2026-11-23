@@ -82,6 +82,6 @@ class Sfx(context: Context) {
 
     private companion object {
         /** Abspieltempo = Stimmlage: tief und gemütlich bis hoch und quietschig. */
-        val Voices = listOf(0.72f, 0.85f, 1.0f, 1.15f, 1.3f)
+        val Voices = listOf(0.95f, 1.05f, 1.15f, 1.25f, 1.35f)
     }
 }
