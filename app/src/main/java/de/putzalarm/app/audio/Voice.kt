@@ -115,7 +115,8 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
                         f
                     }.getOrNull()
                 }
-                if (files.isNotEmpty()) { files.forEach { onClip(shown, it) }; return@forEach }
+                // Die alte Gerätestimme entsteht trotzdem, damit man im Elternbereich zurückschalten kann
+                files.forEach { onClip(shown, it) }
                 val file = File(dir, "ruf_${"$spoken|$tag".hashCode().toUInt()}.wav")
                 if (file.length() > 1000) onClip(shown, file) else todo["clip${todo.size}"] = shown to file
             }
@@ -152,10 +153,14 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
      * Ansage. Unterbricht, was gerade läuft. [role] wählt die aufgenommene Stimme ("buersti" oder "darth");
      * [pitch] gilt für die Teile, die die Gerätestimme spricht.
      */
+    /** Elternbereich: false = nur die alte Gerätestimme, Aufnahmen werden ignoriert. */
+    @Volatile
+    var useRecordings = true
+
     fun say(text: String, pitch: Float = 1f, role: String = "buersti") {
         halt()
         sayPitch = pitch
-        val rec = recorded[role].orEmpty()
+        val rec = if (useRecordings) recorded[role].orEmpty() else emptyMap()
         val segs = mutableListOf<Pair<Boolean, String>>()
         fun speak(t: String) {
             val last = segs.lastOrNull()

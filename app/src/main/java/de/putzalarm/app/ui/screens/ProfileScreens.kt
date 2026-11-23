@@ -61,6 +61,8 @@ fun ProfilePickerScreen(
     onShowMeter: (Boolean) -> Unit = {},
     music: Boolean = true,
     onMusic: (Boolean) -> Unit = {},
+    newVoices: Boolean = true,
+    onNewVoices: (Boolean) -> Unit = {},
 ) {
     DottedBackground {
         Row(Modifier.align(Alignment.TopEnd).padding(3.5.u), horizontalArrangement = Arrangement.spacedBy(1.4.u)) {
@@ -107,7 +109,7 @@ fun ProfilePickerScreen(
             }
         }
         if (children.isEmpty() && !editMode) Mascot(Modifier.align(Alignment.BottomStart).padding(start = 4.u).width(22.u))
-        if (editMode) DetectionSettings(sensitivity, onSensitivity, showMeter, onShowMeter, music, onMusic, Modifier.align(Alignment.BottomCenter).padding(bottom = 3.5.u))
+        if (editMode) DetectionSettings(sensitivity, onSensitivity, showMeter, onShowMeter, music, onMusic, newVoices, onNewVoices, Modifier.align(Alignment.BottomCenter).padding(bottom = 3.5.u))
     }
 }
 
@@ -120,6 +122,8 @@ private fun DetectionSettings(
     onShowMeter: (Boolean) -> Unit,
     music: Boolean,
     onMusic: (Boolean) -> Unit,
+    newVoices: Boolean,
+    onNewVoices: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -140,6 +144,9 @@ private fun DetectionSettings(
         }
         ComicButton({ onMusic(!music) }, bg = if (music) M.Ink else Color.White, radius = 3.u, border = 0.4.u, shadow = 0.5.u, padding = 1.u) {
             BasicText(if (music) "Musik an" else "Musik aus", style = lilita(2.2, if (music) M.Yellow else M.Ink))
+        }
+        ComicButton({ onNewVoices(!newVoices) }, bg = if (newVoices) M.Ink else Color.White, radius = 3.u, border = 0.4.u, shadow = 0.5.u, padding = 1.u) {
+            BasicText(if (newVoices) "Stimmen neu" else "Stimmen alt", style = lilita(2.2, if (newVoices) M.Yellow else M.Ink))
         }
     }
 }

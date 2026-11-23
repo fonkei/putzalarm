@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +71,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
     val context = LocalContext.current
     var screen by remember { mutableStateOf<Screen>(Screen.Picker()) }
     var pendingBrush by remember { mutableStateOf<String?>(null) }
+    // Neue oder alte Stimmen (Elternbereich)
+    SideEffect { voice.useRecordings = store.newVoices; sfx.useRecordings = store.newVoices }
 
     val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         pendingBrush?.let { screen = Screen.Brush(it, granted) }
@@ -107,6 +110,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 onShowMeter = store::updateShowMeter,
                 music = store.music,
                 onMusic = store::updateMusic,
+                newVoices = store.newVoices,
+                onNewVoices = store::updateNewVoices,
             )
             is Screen.Gate -> ParentGateScreen(onPass = { screen = s.then }, onCancel = { screen = Screen.Picker() })
             is Screen.Edit -> EditChildScreen(

@@ -214,6 +214,15 @@ class ProfileStore(context: Context) {
     var music by mutableStateOf(prefs.getBoolean("musik", true))
         private set
 
+    /** Neue, aufgenommene Stimmen (VoiceStudio). Aus = alte Gerätestimme wie früher; die Kinderdaten bleiben davon unberührt. */
+    var newVoices by mutableStateOf(prefs.getBoolean("neue_stimmen", true))
+        private set
+
+    fun updateNewVoices(on: Boolean) {
+        newVoices = on
+        prefs.edit().putBoolean("neue_stimmen", on).apply()
+    }
+
     fun updateMusic(on: Boolean) {
         music = on
         prefs.edit().putBoolean("musik", on).apply()

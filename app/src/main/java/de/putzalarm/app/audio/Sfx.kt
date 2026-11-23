@@ -33,6 +33,10 @@ class Sfx(context: Context) {
     private val fanfare = load(R.raw.fanfare)
     private var busyUntil = 0L
     /** Pro Ruf eine oder mehrere Aufnahmen: (Sound, Länge in ms, echte Aufnahme?). */
+    /** Elternbereich: false = Monster rufen mit der alten Gerätestimme. */
+    @Volatile
+    var useRecordings = true
+
     private val words = java.util.concurrent.ConcurrentHashMap<String, List<Triple<Int, Long, Boolean>>>()
 
     /**
@@ -69,7 +73,8 @@ class Sfx(context: Context) {
     fun scream(text: String): Boolean {
         val now = System.currentTimeMillis()
         if (now < busyUntil) return false
-        val word = words[text]?.randomOrNull()
+        val all = words[text]
+        val word = (all?.filter { it.third == useRecordings }?.takeIf { it.isNotEmpty() } ?: all)?.randomOrNull()
         if (word != null) {
             // Echte Aufnahmen klingen schon ängstlich; nur leicht verstellen, sonst wird es Mickymaus
             val rate = if (word.third) RecVoices.random() else Voices.random()
