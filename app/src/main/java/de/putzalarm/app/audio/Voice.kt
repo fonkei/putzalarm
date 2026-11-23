@@ -22,15 +22,22 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     private val assets = context.applicationContext.assets
     private val main = Handler(Looper.getMainLooper())
 
-    /** Rolle -> (normalisierter Satz -> Datei unter assets/stimme). Leer, wenn es keine Aufnahmen gibt. */
+    /**
+     * Rolle -> (normalisierter Satz -> Asset-Pfad). Leer, wenn es keine Aufnahmen gibt.
+     * assets/stimme: feste Sätze (im Repo). assets/stimme_privat: Sätze mit den Namen der Kinder,
+     * nur im Build auf dem PC (steht in .gitignore). Für andere Namen spricht die Gerätestimme.
+     */
     private val recorded: Map<String, Map<String, String>> by lazy {
-        runCatching {
-            val o = org.json.JSONObject(assets.open("stimme/index.json").bufferedReader().use { it.readText() })
-            o.keys().asSequence().filter { it != "_meta" }.associateWith { role ->
+        val all = mutableMapOf<String, MutableMap<String, String>>()
+        for (base in listOf("stimme", "stimme_privat")) runCatching {
+            val o = org.json.JSONObject(assets.open("$base/index.json").bufferedReader().use { it.readText() })
+            o.keys().asSequence().filter { it != "_meta" }.forEach { role ->
                 val r = o.getJSONObject(role)
-                r.keys().asSequence().associateWith { r.getString(it) }
+                val m = all.getOrPut(role) { mutableMapOf() }
+                r.keys().forEach { m[it] = "$base/" + r.getString(it) }
             }
-        }.getOrDefault(emptyMap())
+        }
+        all
     }
 
     override fun onInit(status: Int) {
@@ -104,7 +111,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
                 val files = recs.mapNotNull { name ->
                     runCatching {
                         val f = File(dir, "el_" + name.replace('/', '_'))
-                        if (f.length() < 500) assets.open("stimme/$name").use { inp -> f.outputStream().use { inp.copyTo(it) } }
+                        if (f.length() < 500) assets.open(name).use { inp -> f.outputStream().use { inp.copyTo(it) } }
                         f
                     }.getOrNull()
                 }
@@ -172,7 +179,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         val id = ++segId
         if (isClip) {
             val ok = runCatching {
-                assets.openFd("stimme/$what").use { fd ->
+                assets.openFd(what).use { fd ->
                     player = MediaPlayer().apply {
                         setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
                         setOnCompletionListener { it.release(); if (player === it) player = null; if (id == segId) next() }

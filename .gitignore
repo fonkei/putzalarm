@@ -6,3 +6,8 @@ local.properties
 .DS_Store
 captures/
 .kotlin/
+
+# Namen der Kinder und ihre Namens-Aufnahmen bleiben auf dem PC (öffentliches Repo)
+tools/stimme_namen.txt
+tools/stimme_saetze_privat.json
+app/src/main/assets/stimme_privat/
