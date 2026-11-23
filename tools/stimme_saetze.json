@@ -1296,6 +1296,48 @@
   "datei": "app/src/main/assets/stimme/darth/c26ccb30cd7b.mp3"
  },
  {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Gut gemacht, junger Padawan.",
+  "datei": "app/src/main/assets/stimme/darth/6436e09763dd.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Deine Zähne werden immer heller!",
+  "datei": "app/src/main/assets/stimme/darth/c1d82b47927b.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Hör zu, junger Padawan: Zwei Minuten putzen, dann gehört der Sieg uns!",
+  "datei": "app/src/main/assets/stimme/darth/31e4d2a09d9d.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Junger Padawan, nimm deine Bürste.",
+  "datei": "app/src/main/assets/stimme/darth/b20070d9993a.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Die Monster dürfen nicht entkommen!",
+  "datei": "app/src/main/assets/stimme/darth/b5ba985619f6.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Du lernst schnell, junger Padawan.",
+  "datei": "app/src/main/assets/stimme/darth/fceb0621c11a.mp3"
+ },
+ {
+  "rolle": "darth",
+  "stimme": "Darth Bürsti, tief und feierlich",
+  "text": "Bald bist du ein Meister der Zahnbürste!",
+  "datei": "app/src/main/assets/stimme/darth/34eada76d48a.mp3"
+ },
+ {
   "rolle": "monster1",
   "stimme": "Monster, ängstlich (Stimme 1)",
   "text": "Hilfe!",

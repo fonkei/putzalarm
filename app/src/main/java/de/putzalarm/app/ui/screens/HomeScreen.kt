@@ -241,6 +241,10 @@ private object Greetings {
         "Komm zur strahlenden Seite. Da sind die Zähne blitzblank!",
         "Mein Lichtschwert putzt heller als tausend Sonnen!",
         "Ich spüre eine Störung in der Macht. Da sind Monster in deinem Mund!",
+        "Gut gemacht, junger Padawan. Deine Zähne werden immer heller!",
+        "Hör zu, junger Padawan: Zwei Minuten putzen, dann gehört der Sieg uns!",
+        "Junger Padawan, nimm deine Bürste. Die Monster dürfen nicht entkommen!",
+        "Du lernst schnell, junger Padawan. Bald bist du ein Meister der Zahnbürste!",
     )
 
     fun poke(c: Child, isDarth: Boolean = false): String = pickFresh(
