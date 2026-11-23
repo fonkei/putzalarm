@@ -1,19 +1,37 @@
 package de.putzalarm.app.audio
 
 import android.content.Context
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.io.File
 import java.util.Locale
 
 /**
- * Sprachansagen über die Android-Sprachsynthese. Ersetzt Text für Kinder, die noch nicht lesen.
+ * Sprachansagen. Feste Sätze kommen als fertige Aufnahmen aus assets/stimme (erzeugt mit
+ * tools/make_voices.py über ElevenLabs), alles andere, z. B. Namen und Zahlen, spricht die Android-Sprachsynthese.
+ * Fehlen die Aufnahmen, spricht die Sprachsynthese alles wie früher. Ersetzt Text für Kinder, die noch nicht lesen.
  * Nimmt die natürlichste deutsche Stimme, die das Gerät hat. Fehlt die Sprachsynthese, bleibt die App stumm.
  */
 class Voice(context: Context) : TextToSpeech.OnInitListener {
     private val tts = TextToSpeech(context.applicationContext, this)
     private var ready = false
+    private val assets = context.applicationContext.assets
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Rolle -> (normalisierter Satz -> Datei unter assets/stimme). Leer, wenn es keine Aufnahmen gibt. */
+    private val recorded: Map<String, Map<String, String>> by lazy {
+        runCatching {
+            val o = org.json.JSONObject(assets.open("stimme/index.json").bufferedReader().use { it.readText() })
+            o.keys().asSequence().filter { it != "_meta" }.associateWith { role ->
+                val r = o.getJSONObject(role)
+                r.keys().asSequence().associateWith { r.getString(it) }
+            }
+        }.getOrDefault(emptyMap())
+    }
 
     override fun onInit(status: Int) {
         if (status != TextToSpeech.SUCCESS) return
@@ -44,6 +62,12 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         }.getOrNull() ?: speakVoice
         speakVoice?.let { tts.voice = it }
         restoreVoice()
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+            override fun onDone(utteranceId: String?) = done(utteranceId)
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) = done(utteranceId)
+        })
         pendingClips?.invoke()
         pendingClips = null
     }
@@ -54,6 +78,14 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
 
     @Volatile
     private var rendering = false
+    @Volatile
+    private var renderDone: ((String) -> Unit)? = null
+
+    private fun done(id: String?) {
+        if (id == null) return
+        if (id.startsWith("clip")) renderDone?.invoke(id)
+        else if (id.startsWith("seg")) main.post { if (id == "seg$segId") next() }
+    }
 
     /**
      * Spricht die Monster-Rufe einmal mit hoher Stimme in Dateien, damit sie danach
@@ -67,23 +99,25 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
             val tag = "${monsterVoice?.name}|1.45|0.92"
             val todo = mutableMapOf<String, Pair<String, File>>()
             phrases.forEach { (shown, spoken) ->
+                // Fertige Aufnahmen (mehrere ängstliche Stimmen) haben Vorrang vor der Gerätestimme
+                val recs = recorded.filterKeys { it.startsWith("monster") }.values.mapNotNull { it[norm(spoken)] }
+                val files = recs.mapNotNull { name ->
+                    runCatching {
+                        val f = File(dir, "el_" + name.replace('/', '_'))
+                        if (f.length() < 500) assets.open("stimme/$name").use { inp -> f.outputStream().use { inp.copyTo(it) } }
+                        f
+                    }.getOrNull()
+                }
+                if (files.isNotEmpty()) { files.forEach { onClip(shown, it) }; return@forEach }
                 val file = File(dir, "ruf_${"$spoken|$tag".hashCode().toUInt()}.wav")
                 if (file.length() > 1000) onClip(shown, file) else todo["clip${todo.size}"] = shown to file
             }
             if (todo.isNotEmpty()) {
                 val lastId = "clip${todo.size - 1}"
-                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {}
-                    override fun onDone(utteranceId: String?) {
-                        val (shown, file) = todo[utteranceId] ?: return
-                        if (file.length() > 1000) onClip(shown, file)
-                        if (utteranceId == lastId) rendering = false
-                    }
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) {
-                        if (utteranceId == lastId) rendering = false
-                    }
-                })
+                renderDone = { id ->
+                    todo[id]?.let { (shown, file) -> if (file.length() > 1000) onClip(shown, file) }
+                    if (id == lastId) rendering = false
+                }
                 // Kleine, hohe Stimme, aber natürliche Betonung; die Stimmlage variiert beim Abspielen.
                 rendering = true
                 monsterVoice?.let { tts.voice = it }
@@ -102,21 +136,88 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
         tts.setSpeechRate(0.95f)
     }
 
-    /** Ansage. Unterbricht, was gerade läuft. */
-    fun say(text: String, pitch: Float = 1f) {
-        if (!ready) return
-        // Während die Monster-Rufe noch entstehen, nicht dazwischenfunken, sondern hinten anstellen.
-        if (pitch != 1f) tts.setPitch(pitch)
-        tts.speak(text, if (rendering) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "say")
-        if (pitch != 1f) tts.setPitch(1f)
+    private val queue = ArrayDeque<Pair<Boolean, String>>() // (Aufnahme?, Datei oder Text)
+    private var player: MediaPlayer? = null
+    private var segId = 0
+    private var sayPitch = 1f
+
+    /**
+     * Ansage. Unterbricht, was gerade läuft. [role] wählt die aufgenommene Stimme ("buersti" oder "darth");
+     * [pitch] gilt für die Teile, die die Gerätestimme spricht.
+     */
+    fun say(text: String, pitch: Float = 1f, role: String = "buersti") {
+        halt()
+        sayPitch = pitch
+        val rec = recorded[role].orEmpty()
+        val segs = mutableListOf<Pair<Boolean, String>>()
+        fun speak(t: String) {
+            val last = segs.lastOrNull()
+            if (last != null && !last.first) segs[segs.size - 1] = false to (last.second + " " + t) else segs += false to t
+        }
+        for (sen in sentences(text)) {
+            val whole = rec[norm(sen)]
+            if (whole != null) { segs += true to whole; continue }
+            for (p in parts(sen)) rec[norm(p)]?.let { segs += true to it } ?: speak(p)
+        }
+        if (segs.none { it.first }) {
+            // Keine Aufnahme dabei: wie früher alles in einem Rutsch mit der Gerätestimme
+            if (!ready) return
+            queue += false to text
+        } else queue += segs
+        next()
+    }
+
+    private fun next() {
+        val (isClip, what) = queue.removeFirstOrNull() ?: return
+        val id = ++segId
+        if (isClip) {
+            val ok = runCatching {
+                assets.openFd("stimme/$what").use { fd ->
+                    player = MediaPlayer().apply {
+                        setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
+                        setOnCompletionListener { it.release(); if (player === it) player = null; if (id == segId) next() }
+                        prepare()
+                        start()
+                    }
+                }
+            }.isSuccess
+            if (!ok) next()
+        } else {
+            if (!ready) { next(); return }
+            // Während die Monster-Rufe noch entstehen, nicht dazwischenfunken, sondern hinten anstellen.
+            if (sayPitch != 1f) tts.setPitch(sayPitch)
+            tts.speak(what, if (rendering) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, "seg$id")
+            if (sayPitch != 1f) tts.setPitch(1f)
+        }
+    }
+
+    private fun halt() {
+        queue.clear()
+        segId++
+        player?.let { runCatching { it.stop() }; it.release() }
+        player = null
+        if (ready && !rendering) tts.stop()
     }
 
     /** Spricht gerade etwas (z. B. der Schluss-Spruch)? */
-    val speaking: Boolean get() = ready && tts.isSpeaking
+    val speaking: Boolean get() = queue.isNotEmpty() || player != null || (ready && tts.isSpeaking)
 
     fun stop() {
+        halt()
         if (ready) tts.stop()
     }
 
-    fun shutdown() = tts.shutdown()
+    fun shutdown() {
+        halt()
+        tts.shutdown()
+    }
+
+    companion object {
+        // Gleiche Regeln wie tools/make_voices.py (sentences, parts, norm)
+        private val Sentence = Regex("[^.!?]+[.!?]*")
+        private val Part = Regex("[^,:]+[,:]*")
+        fun norm(s: String) = s.lowercase(Locale.ROOT).replace(Regex("[^\\p{L}\\p{N} ]"), " ").replace(Regex(" +"), " ").trim()
+        fun sentences(t: String) = Sentence.findAll(t).map { it.value.trim() }.filter { norm(it).isNotEmpty() }.toList()
+        fun parts(t: String) = Part.findAll(t).map { it.value.trim() }.filter { norm(it).isNotEmpty() }.toList()
+    }
 }

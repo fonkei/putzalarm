@@ -124,8 +124,8 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     onAlbum = { screen = Screen.Album(c.id, back = s) },
                     onWardrobe = { screen = Screen.Wardrobe(c.id) },
                     onSwitch = { screen = Screen.Picker() },
-                    // Darth Bürsti spricht mit tiefer Stimme
-                    greet = { text -> voice.say(text, if (c.outfit.costume == Costume.DARTH) 0.62f else 1f) },
+                    // Darth Bürsti spricht mit tiefer Stimme (eigene Aufnahmen, sonst tiefe Gerätestimme)
+                    greet = { text -> if (c.outfit.costume == Costume.DARTH) voice.say(text, 0.62f, "darth") else voice.say(text) },
                 )
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Brush -> store.get(s.childId)?.let { c ->

@@ -32,12 +32,26 @@ class Sfx(context: Context) {
     private val combo = load(R.raw.combo)
     private val fanfare = load(R.raw.fanfare)
     private var busyUntil = 0L
-    private val words = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Long>>()
+    /** Pro Ruf eine oder mehrere Aufnahmen: (Sound, Länge in ms, echte Aufnahme?). */
+    private val words = java.util.concurrent.ConcurrentHashMap<String, List<Triple<Int, Long, Boolean>>>()
 
-    /** Ein gesprochenes Monster-Wort (siehe [Voice.renderScreams]) als Sound übernehmen, mit seiner Länge in ms. */
+    /**
+     * Ein gesprochenes Monster-Wort (siehe [Voice.renderScreams]) als Sound übernehmen, mit seiner Länge in ms.
+     * Mehrere Dateien für denselben Ruf sind verschiedene Stimmen; abgespielt wird dann zufällig eine davon.
+     */
     fun addWord(text: String, file: java.io.File) {
-        words[text] = pool.load(file.path, 1) to wavMillis(file)
+        val rec = file.name.endsWith(".mp3")
+        val clip = Triple(pool.load(file.path, 1), if (rec) mp3Millis(file) else wavMillis(file), rec)
+        words.merge(text, listOf(clip)) { a, b -> a + b }
     }
+
+    private fun mp3Millis(file: java.io.File): Long = runCatching {
+        val r = android.media.MediaMetadataRetriever()
+        try {
+            r.setDataSource(file.path)
+            r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toLong()
+        } finally { r.release() }
+    }.getOrDefault(2000L)
 
     /** Länge einer WAV-Datei aus ihrem Kopf (Bytes pro Sekunde); im Zweifel 1,5 Sekunden. */
     private fun wavMillis(file: java.io.File): Long = runCatching {
@@ -55,9 +69,10 @@ class Sfx(context: Context) {
     fun scream(text: String): Boolean {
         val now = System.currentTimeMillis()
         if (now < busyUntil) return false
-        val word = words[text]
+        val word = words[text]?.randomOrNull()
         if (word != null) {
-            val rate = Voices.random()
+            // Echte Aufnahmen klingen schon ängstlich; nur leicht verstellen, sonst wird es Mickymaus
+            val rate = if (word.third) RecVoices.random() else Voices.random()
             play(word.first, 1f, rate)
             busyUntil = now + (word.second / rate).toLong() + 450L
         } else {
@@ -83,5 +98,6 @@ class Sfx(context: Context) {
     private companion object {
         /** Abspieltempo = Stimmlage: tief und gemütlich bis hoch und quietschig. */
         val Voices = listOf(0.95f, 1.05f, 1.15f, 1.25f, 1.35f)
+        val RecVoices = listOf(0.96f, 1.0f, 1.05f, 1.1f)
     }
 }
