@@ -78,8 +78,8 @@ fun HomeScreen(
                 ChildAvatar(child, photoDir, 6.u)
             }
             Spacer(Modifier.width(2.u))
-            // Boss der Woche mit Lebensbalken; antippen erklärt ihn. Besiegte stehen klein und durchgekreuzt davor,
-            // und gleich ist der nächste Boss dran.
+            // Boss der Woche mit Lebensbalken; antippen erklärt ihn. Nach einem Sieg ist gleich der nächste Boss dran
+            // (die besiegten zeigt das Album mit rotem Kreuz).
             val boss = child.currentBoss
             val beaten = child.bossesBeatenNow
             ComicButton(
@@ -97,9 +97,6 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(1.8.u),
                 ) {
-                    if (beaten > 0) Row(horizontalArrangement = Arrangement.spacedBy(0.2.u)) {
-                        (0 until beaten).toList().takeLast(3).forEach { k -> BossImage(bossOfWeek(k), Modifier.size(4.6.u), beaten = true) }
-                    }
                     BossImage(boss, Modifier.size(6.4.u))
                     BossBar(child.bossLeft, Modifier.width(14.u).height(2.4.u))
                 }
