@@ -102,20 +102,6 @@ fun HomeScreen(
                     if (beaten) IconArt(Icon.CHECK, Modifier.size(3.4.u))
                 }
             }
-            Spacer(Modifier.width(2.u))
-            // Schatzkarte: Kiste und wie weit es noch ist (gefüllte Punkte = geschaffte Felder)
-            ComicButton(onMap, bg = Color(0xFFBFE8FF), radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
-                    ChestIcon(Modifier.width(5.u))
-                    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(0.3.u)) {
-                        for (row in 0 until 2) Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
-                            for (i in row * 5 until row * 5 + 5) Box(
-                                Modifier.size(1.2.u).background(if (i < child.mapField) M.Yellow else Color.White, CircleShape).border(0.15.u, M.Ink, CircleShape),
-                            )
-                        }
-                    }
-                }
-            }
         }
         Column(
             Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd).padding(end = 5.u),
@@ -154,10 +140,26 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(1.u))
             val s = child.streak
-            BasicText(
-                when (s) { 0 -> "Heute geht's los!"; 1 -> "1 Tag geputzt"; else -> "$s Tage in Folge geputzt" },
-                style = nunito(2),
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BasicText(
+                    when (s) { 0 -> "Heute geht's los!"; 1 -> "1 Tag geputzt"; else -> "$s Tage in Folge geputzt" },
+                    style = nunito(2),
+                    modifier = Modifier.weight(1f),
+                )
+                // Schatzkarte: Kiste und wie weit es noch ist (gefüllte Punkte = geschaffte Felder)
+                ComicButton(onMap, bg = Color(0xFFBFE8FF), radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+                        ChestIcon(Modifier.width(5.u))
+                        androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(0.3.u)) {
+                            for (row in 0 until 2) Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
+                                for (i in row * 5 until row * 5 + 5) Box(
+                                    Modifier.size(1.2.u).background(if (i < child.mapField) M.Yellow else Color.White, CircleShape).border(0.15.u, M.Ink, CircleShape),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(2.u))
             Row(horizontalArrangement = Arrangement.spacedBy(2.u), verticalAlignment = Alignment.CenterVertically) {
                 ComicButton(onAlbum, bg = Color.White, radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
