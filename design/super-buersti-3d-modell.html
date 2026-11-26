@@ -359,12 +359,102 @@ const darthParts=[helmet,saber];
 // Was unter Helm und Maske verschwindet
 const faceParts=[mask,mouthG,bristles,...headG.children.filter(o=>o.userData.face)];
 
+// --- Ausrüstung (neu im November 2026): Hüte und Helme auf dem Kopf, Brillen vor den Augen ---
+// Jedes Teil ist eine eigene Gruppe am Kopf; die App bekommt sie als eigene Bild-Ebene (acc_<name>_<pose>_<bild>).
+const ACC={};
+{
+  const M=(color,o={})=>new THREE.MeshPhysicalMaterial(Object.assign({color,roughness:.3,clearcoat:.8,clearcoatRoughness:.1},o));
+  const gold=M(0xffc928,{metalness:.9,roughness:.2}),silver=M(0xd6dde8,{metalness:.9,roughness:.18}),cream=M(0xfff1d6,{roughness:.35});
+  const add=(name,build)=>{const g=new THREE.Group();g.visible=false;headG.add(g);build(g);shadowAll(g);g.traverse(m=>{if(m.material)m.material.envMapIntensity=.35;});ACC[name]=g;};
+  const top=.47; // Oberkante des Bürstenkopfs
+  // Ein Horn aus kleiner werdenden Kugeln entlang einer Kurve
+  const horn=(g,pts,r0,r1,m)=>{const c=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));
+    for(let i=0;i<=14;i++){const t=i/14,b=ball(r0+(r1-r0)*t,m);b.position.copy(c.getPoint(t));g.add(b);}};
+  const starShape=(r)=>{const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;i?sh.lineTo(x,y):sh.moveTo(x,y);}sh.closePath();return sh;};
+  const heartShape=(r)=>{const sh=new THREE.Shape();sh.moveTo(0,-r);sh.bezierCurveTo(r*1.4,-r*.1,r*.9,r*1.05,0,r*.45);sh.bezierCurveTo(-r*.9,r*1.05,-r*1.4,-r*.1,0,-r);return sh;};
+  // Krone
+  add('krone',g=>{const ring=new THREE.Mesh(new THREE.CylinderGeometry(.27,.25,.16,48,1,true),gold);ring.material.side=THREE.DoubleSide;ring.position.y=top+.06;ring.scale.z=.62;g.add(ring);
+    for(let i=0;i<7;i++){const a=i/7*Math.PI*2+Math.PI/2;const sp=new THREE.Mesh(new THREE.ConeGeometry(.05,.16,16),gold);sp.position.set(Math.cos(a)*.26,top+.21,Math.sin(a)*.26*.62);g.add(sp);
+      const tip=ball(.028,gold);tip.position.set(Math.cos(a)*.26,top+.3,Math.sin(a)*.26*.62);g.add(tip);}
+    [[0,0xff3d7f],[-.17,0x2f6bff],[.17,0x4cd964]].forEach(([x,c])=>{const gem=ball(.042,M(c,{roughness:.05,clearcoat:1}));gem.scale.z=.5;gem.position.set(x,top+.06,Math.sqrt(Math.max(0,.068-x*x))*.62+.01);g.add(gem);});});
+  // Wikingerhelm
+  add('wikinger',g=>{const dome=new THREE.Mesh(new THREE.SphereGeometry(.36,48,24,0,Math.PI*2,0,Math.PI/2),silver);dome.scale.set(1,.75,.62);dome.position.y=top-.12;g.add(dome);
+    const band=new THREE.Mesh(new THREE.TorusGeometry(.36,.035,12,48),gold);band.rotation.x=Math.PI/2;band.scale.set(1,.62,1);band.position.y=top-.11;g.add(band);
+    const ridge=roundBox(.06,.06,.44,.03,gold);ridge.position.y=top+.14;g.add(ridge);
+    for(const sx of [-1,1])horn(g,[[sx*.3,top-.02,0],[sx*.48,top+.05,0],[sx*.55,top+.25,0],[sx*.5,top+.42,0]],.075,.02,cream);});
+  // Zauberhut mit Sternen
+  add('zauberer',g=>{const blue=M(0x3a3fd6,{roughness:.45,clearcoat:.3});
+    const brim=new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,.03,48),blue);brim.scale.z=.7;brim.position.y=top+.01;g.add(brim);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(.28,.8,48),blue);cone.scale.z=.75;cone.position.y=top+.41;cone.rotation.z=.12;g.add(cone);
+    const yel=M(0xffd23f,{metalness:.4,roughness:.25});
+    [[-.08,top+.2,.2,.07],[.1,top+.42,.15,.055],[-.03,top+.6,.1,.045]].forEach(([x,y,z,r])=>{const st=slab(starShape(r),.01,.008,yel);st.position.set(x,y,z);g.add(st);});
+    const tip=ball(.045,yel);tip.position.set(-.1,top+.8,0);g.add(tip);});
+  // Piratenhut (Zweispitz) mit goldenem Rand und weißem Totenkopf-Punkt
+  add('pirat',g=>{const blk=M(0x1e1a26,{roughness:.5,clearcoat:.2});
+    const sh=new THREE.Shape();sh.moveTo(-.55,0);sh.quadraticCurveTo(-.3,.06,0,.36);sh.quadraticCurveTo(.3,.06,.55,0);sh.quadraticCurveTo(0,-.05,-.55,0);
+    const hat=slab(sh,.36,.04,blk);hat.position.set(0,top-.08,-.2);g.add(hat);
+    const edge=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[-.55,0],[-.3,.08],[0,.37],[.3,.08],[.55,0]].map(([x,y])=>new THREE.Vector3(x,y+top-.08,.2))),40,.018,8,false),gold);g.add(edge);
+    const skull=ball(.065,M(0xffffff));skull.scale.z=.4;skull.position.set(0,top+.1,.205);g.add(skull);
+    for(const r of [.7,-.7]){const bone=cap(.014,.16,M(0xffffff));bone.rotation.z=r;bone.position.set(0,top+.02,.2);g.add(bone);}});
+  // Cowboyhut
+  add('cowboy',g=>{const brown=M(0x9a5b2e,{roughness:.6,clearcoat:.1});
+    const brimGeo=new THREE.CylinderGeometry(.6,.6,.03,64,1);const bp=brimGeo.attributes.position;
+    for(let i=0;i<bp.count;i++){const x=bp.getX(i);bp.setY(i,bp.getY(i)+x*x*.55);}brimGeo.computeVertexNormals();
+    const brim=new THREE.Mesh(brimGeo,brown);brim.scale.z=.62;brim.position.y=top-.02;g.add(brim);
+    const crown=new THREE.Mesh(new THREE.CylinderGeometry(.24,.29,.3,48),brown);crown.scale.z=.7;crown.position.y=top+.14;g.add(crown);
+    const dent=ball(.2,brown);dent.scale.set(1.1,.35,.75);dent.position.y=top+.29;g.add(dent);
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(.293,.295,.06,48,1,true),M(0x2a1a12));band.scale.z=.7;band.position.y=top+.03;g.add(band);
+    const star=slab(starShape(.06),.01,.006,gold);star.position.set(0,top+.05,.215);g.add(star);});
+  // Partyhut mit Streifen und Bommel
+  add('party',g=>{const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');
+    for(let i=0;i<8;i++){x.fillStyle=i%2?'#ffd23f':'#ff3d7f';x.beginPath();x.moveTo(i*32,0);x.lineTo(i*32+32,0);x.lineTo(i*32+16+32,64);x.lineTo(i*32+16,64);x.fill();}
+    const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=THREE.RepeatWrapping;
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(.22,.55,48,1,true),new THREE.MeshPhysicalMaterial({map:t,roughness:.35,clearcoat:.6,side:THREE.DoubleSide}));
+    cone.position.set(.06,top+.26,0);cone.rotation.z=-.22;g.add(cone);
+    const pom=ball(.07,M(0x3ee0b0,{roughness:.8,clearcoat:0}));pom.position.set(.18,top+.53,0);g.add(pom);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(.215,.025,10,40),M(0xffffff,{roughness:.8}));rim.rotation.x=Math.PI/2;rim.position.set(.0,top+.0,0);rim.rotation.y=0;rim.rotation.z=-.22;g.add(rim);});
+  // Feuerwehrhelm
+  add('feuerwehr',g=>{const red=M(0xe8322b);
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(.37,48,24,0,Math.PI*2,0,Math.PI/2),red);dome.scale.set(1,.8,.66);dome.position.y=top-.13;g.add(dome);
+    const brimGeo=new THREE.CylinderGeometry(.5,.5,.03,64);const bp=brimGeo.attributes.position;
+    for(let i=0;i<bp.count;i++){const z=bp.getZ(i);if(z>0)bp.setZ(i,z*.55);else bp.setY(i,bp.getY(i)+z*.2);}brimGeo.computeVertexNormals();
+    const brim=new THREE.Mesh(brimGeo,red);brim.scale.z=.8;brim.position.y=top-.13;g.add(brim);
+    const ridge=roundBox(.07,.07,.5,.03,gold);ridge.position.y=top+.15;g.add(ridge);
+    const badge=slab(shield,.02,.015,gold);badge.scale.setScalar(.85);badge.position.set(0,top+.02,.23);badge.rotation.x=-.4;g.add(badge);});
+  // Bauarbeiterhelm
+  add('bauhelm',g=>{const yel=M(0xffc928,{roughness:.25});
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(.36,48,24,0,Math.PI*2,0,Math.PI/2),yel);dome.scale.set(1,.85,.64);dome.position.y=top-.12;g.add(dome);
+    const brim=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,.03,64),yel);brim.scale.z=.7;brim.position.set(0,top-.12,.05);g.add(brim);
+    const ridge=roundBox(.1,.07,.48,.03,yel);ridge.position.y=top+.17;g.add(ridge);});
+  // Sonnenbrille
+  const glassesY=.06,glassesZ=.29;
+  add('sonnenbrille',g=>{const lens=M(0x14151c,{roughness:.05,clearcoat:1});
+    for(const sx of [-1,1]){const l=roundBox(.22,.15,.03,.06,lens);l.position.set(sx*.14,glassesY,glassesZ);g.add(l);
+      const shine=roundBox(.06,.025,.01,.01,M(0xffffff,{roughness:0}));shine.position.set(sx*.14-.04,glassesY+.035,glassesZ+.02);shine.rotation.z=.5;g.add(shine);}
+    const bridge=roundBox(.08,.03,.03,.012,lens);bridge.position.set(0,glassesY+.04,glassesZ);g.add(bridge);
+    for(const sx of [-1,1]){const arm=roundBox(.03,.03,.3,.012,lens);arm.position.set(sx*.33,glassesY+.03,glassesZ-.14);g.add(arm);}});
+  // Herzbrille
+  add('herzbrille',g=>{const pink=M(0xff3d7f,{roughness:.1,clearcoat:1});
+    for(const sx of [-1,1]){const h=slab(heartShape(.11),.02,.012,pink);h.position.set(sx*.14,glassesY+.02,glassesZ);g.add(h);}
+    const bridge=roundBox(.08,.03,.03,.012,pink);bridge.position.set(0,glassesY+.05,glassesZ+.01);g.add(bridge);
+    for(const sx of [-1,1]){const arm=roundBox(.03,.03,.3,.012,pink);arm.position.set(sx*.33,glassesY+.05,glassesZ-.14);g.add(arm);}});
+  // Taucherbrille mit Schnorchel
+  add('taucher',g=>{const band=M(0x2f6bff),glass=new THREE.MeshPhysicalMaterial({color:0xbfefff,roughness:0,transmission:0,transparent:true,opacity:.55,clearcoat:1});
+    const frame=roundBox(.56,.22,.06,.09,band);frame.position.set(0,glassesY,glassesZ-.02);g.add(frame);
+    const gl=roundBox(.48,.15,.03,.06,glass);gl.position.set(0,glassesY,glassesZ+.02);g.add(gl);
+    const strap=new THREE.Mesh(new THREE.TorusGeometry(.36,.03,10,48),band);strap.rotation.x=Math.PI/2;strap.scale.set(1,.62,1);strap.position.set(0,glassesY,0);g.add(strap);
+    const sn=M(0xffc928);const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[.36,-.2,.1],[.4,0,.05],[.4,.35,0],[.36,.5,0]].map(p=>new THREE.Vector3(...p))),30,.03,10,false),sn);g.add(tube);});
+}
+
 // --- Kostüme ---
 const COSTUMES={
   gold:{suit:0x2f6bff,suitM:.25,trim:0xffc928,cape:0xff3d7f,head:0x3ee0b0,boot:0xff3d7f,glove:0xffffff,b:'#2f6bff',neon:false},
   chrom:{suit:0xb9c4d6,suitM:.95,trim:0xff3d7f,cape:0x2f6bff,head:0x3ee0b0,boot:0x6c7a92,glove:0xd9e1ee,b:'#ff3d7f',neon:false},
   neon:{suit:0x3b1f7a,suitM:.3,trim:0x3ee0b0,cape:0xff3d7f,head:0xffd23f,boot:0x3ee0b0,glove:0x3ee0b0,b:'#3b1f7a',neon:true},
   darth:{suit:0xf1f3f8,suitM:.15,trim:0x7d889c,cape:0xf1f3f8,head:0xe9eef6,boot:0xf6f8fc,glove:0x2a2b36,b:'#8a96aa',neon:false,mask:0xf6f8fc,darth:true},
+  // Neu im November 2026: Feuer (rot und orange) und Eis (hellblau glänzend)
+  feuer:{suit:0xe8322b,suitM:.3,trim:0xffa41b,cape:0xffa41b,head:0x3ee0b0,boot:0x2a2b36,glove:0xffd23f,b:'#e8322b',neon:false},
+  eis:{suit:0x9fdcff,suitM:.7,trim:0xffffff,cape:0x2f6bff,head:0x3ee0b0,boot:0x2f6bff,glove:0xffffff,b:'#2f6bff',neon:false},
 };
 let currentCostume='gold';
 function costume(k){currentCostume=k;const c=COSTUMES[k];mat.suit.color.setHex(c.suit);mat.suit.metalness=c.suitM;mat.suit.roughness=c.suitM>.5?.18:.28;
@@ -425,6 +515,39 @@ const MOVES={
   guitar:{ms:170,f:[0,1,2,3].map(k=>({L:{sy:.9,uz:-.2,ez:.9},R:{sy:1.25,uz:-.9,ez:k%2?.3:.9},LL:{kz:.15},RL:{kz:.15},lean:k%2?.12:0,turn:.35}))},
   // Abheben wie ein Superheld: Faust nach oben, Umhang weht, er schwebt
   fly:{ms:420,f:[0,1,2,3].map(k=>({L:{uz:-1.3,ez:-1.45},R:{sy:.3,uz:1.4,ez:-1.5},LL:{kx:-.15,toe:.6},RL:{kx:.1,toe:.6},hop:.35+.1*Math.sin(k*Math.PI/2),lean:-.08}))},
+  // Neu im November 2026:
+  // Zahnseide-Tanz (Floss): gestreckte Arme schwingen vor und hinter dem Körper, die Hüfte schwingt dagegen
+  floss:{ms:200,f:[
+    {L:{uz:-.75,ez:-1.5},R:{sy:1.0,uz:-.95,ez:-1.5},sway:-.12,turn:.15},
+    {L:{uz:-1.3,ez:-1.45},R:{uz:-1.3,ez:-1.45},sway:0,turn:0},
+    {L:{sy:1.0,uz:-.95,ez:-1.5},R:{uz:-.75,ez:-1.5},sway:.12,turn:-.15},
+    {L:{uz:-1.3,ez:-1.45},R:{uz:-1.3,ez:-1.45},sway:0,turn:0}]},
+  // Dab: ein Arm schräg nach oben gestreckt, der andere vor dem Gesicht angewinkelt
+  dab:{ms:420,f:[
+    {L:{uz:.75,ez:-1.5},R:{sy:1.35,uz:1.2,ez:1.65},lean:.3,sway:.16,turn:-.35},
+    {L:{uz:-1.3,ez:-1.45},R:{uz:-1.3,ez:-1.45},hop:.08},
+    {L:{sy:1.35,uz:1.2,ez:1.65},R:{uz:.75,ez:-1.5},lean:.3,sway:-.16,turn:.35},
+    {L:{uz:-1.3,ez:-1.45},R:{uz:-1.3,ez:-1.45},hop:.08}]},
+  // Hühnertanz: Fäuste unter die Achseln, Ellbogen flattern, Knie wippen
+  chicken:{ms:170,f:[0,1,2,3].map(k=>({L:{uz:k%2?.25:-.45,ez:2.55},R:{uz:k%2?.25:-.45,ez:2.55},LL:{kx:k===1?.45:0},RL:{kx:k===3?.45:0},hop:k%2?.1:0,lean:.12,turn:k<2?.15:-.15}))},
+  // Hula-Hoop: Arme hoch über dem Kopf, die Hüfte kreist
+  hula:{ms:240,f:[
+    {L:{uz:1.15,ez:-.55},R:{uz:1.15,ez:-.55},sway:.14,lean:0},
+    {L:{uz:1.2,ez:-.45},R:{uz:1.2,ez:-.45},sway:0,lean:.12},
+    {L:{uz:1.15,ez:-.55},R:{uz:1.15,ez:-.55},sway:-.14,lean:0},
+    {L:{uz:1.2,ez:-.45},R:{uz:1.2,ez:-.45},sway:0,lean:-.1}]},
+  // Monster-Stampfen: breiter Stand, abwechselnd ein Bein hoch und kräftig aufstampfen
+  stomp:{ms:300,f:[
+    {L:{uz:.05,ez:-.1},R:{uz:.05,ez:-.1},LL:{kz:.6,kx:.35},RL:{kz:.22},sway:.12,hop:.06},
+    {L:{uz:-.1,ez:.1},R:{uz:-.1,ez:.1},LL:{kz:.22},RL:{kz:.22},hop:0},
+    {L:{uz:.05,ez:-.1},R:{uz:.05,ez:-.1},LL:{kz:.22},RL:{kz:.6,kx:.35},sway:-.12,hop:.06},
+    {L:{uz:-.1,ez:.1},R:{uz:-.1,ez:.1},LL:{kz:.22},RL:{kz:.22},hop:0}]},
+  // Rennen auf der Stelle: Knie hoch, Arme schwingen angewinkelt
+  run:{ms:150,f:[
+    {L:{sy:1.5,uz:-1.0,ez:-.1},R:{sy:-.6,uz:-1.25,ez:-.9},LL:{kx:1.05,toe:.4},RL:{kx:-.2},hop:.1,lean:.08,turn:.75},
+    {L:{sy:.5,uz:-1.15,ez:-.5},R:{sy:.5,uz:-1.15,ez:-.5},LL:{kx:.3},RL:{kx:.3},hop:.03,lean:.08,turn:.75},
+    {L:{sy:-.6,uz:-1.25,ez:-.9},R:{sy:1.5,uz:-1.0,ez:-.1},LL:{kx:-.2},RL:{kx:1.05,toe:.4},hop:.1,lean:.08,turn:.75},
+    {L:{sy:.5,uz:-1.15,ez:-.5},R:{sy:.5,uz:-1.15,ez:-.5},LL:{kx:.3},RL:{kx:.3},hop:.03,lean:.08,turn:.75}]},
 };
 // Kleine Zahnbürste für die Putz-Bewegung, Borsten nach unten
 const mini=new THREE.Group();
@@ -496,7 +619,8 @@ function skinPattern(pattern,col){
 function monster(kind,hex,pattern='plain'){
   const g=new THREE.Group(),body=new THREE.Group();g.add(body);
   const col=new THREE.Color(hex),dkCol=col.clone().lerp(new THREE.Color(0),.32),ltCol=col.clone().lerp(new THREE.Color(0xffffff),.45);
-  const skin=new THREE.MeshPhysicalMaterial({color:pattern==='plain'?col:0xffffff,map:pattern==='plain'?null:skinPattern(pattern,col),roughness:.22,clearcoat:1,clearcoatRoughness:.06,sheen:0});
+  const flat=pattern==='plain'||pattern==='egg';
+  const skin=new THREE.MeshPhysicalMaterial({color:flat?col:0xffffff,map:flat?null:skinPattern(pattern,col),roughness:.22,clearcoat:1,clearcoatRoughness:.06,sheen:0});
   const dk=new THREE.MeshPhysicalMaterial({color:dkCol,roughness:.3,clearcoat:.7});
   const lt=new THREE.MeshPhysicalMaterial({color:ltCol,roughness:.2,clearcoat:1});
   // Körper: Kugel, deren Umriss wie in der App geformt ist
@@ -526,7 +650,7 @@ function monster(kind,hex,pattern='plain'){
   if(kind==='jelly')for(let k=0;k<5;k++){const x0=(k-2)*.11,c=new THREE.CatmullRomCurve3([new THREE.Vector3(x0,-.17,0),new THREE.Vector3(x0+.03,-.28,.02),new THREE.Vector3(x0-.03,-.38,.03),new THREE.Vector3(x0+.02,-.47,.02)]);
     body.add(new THREE.Mesh(new THREE.TubeGeometry(c,20,.024,8,false),dk));const tip=ball(.03,lt);tip.position.copy(c.getPoint(1));body.add(tip);}
   // Flecken
-  if(pattern==='plain'&&kind!=='jelly')for(const [x,y,r] of [[.18,-.16,.04],[-.2,-.2,.03]]){const s=ball(r,dk);s.scale.z=.25;onSurf(s,x,y,0);}
+  if(flat&&kind!=='jelly')for(const [x,y,r] of [[.18,-.16,.04],[-.2,-.2,.03]]){const s=ball(r,dk);s.scale.z=.25;onSurf(s,x,y,0);}
   // Augen
   const eyes=kind==='cyclops'?[[0,.1,.14,.065]]:[[-.13,.1,.095,.046],[.13,.1,.095,.046]];
   const pupils=[];
@@ -549,8 +673,56 @@ function monster(kind,hex,pattern='plain'){
   for(const sx of [-1,1]){const a=new THREE.Group();a.position.set(sx*.3,-.04,0);body.add(a);
     const c=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(sx*.16,.1,0),new THREE.Vector3(sx*.14,.28,0));
     a.add(new THREE.Mesh(new THREE.TubeGeometry(c,24,.025,10,false),dk));const h=ball(.055,skin);h.position.set(sx*.14,.3,0);a.add(h);arms.push(a);}
+  // Schlüpfling aus dem Überraschungsei: sitzt in der unteren Eierschale und trägt ein Schalenstück als Hütchen
+  if(pattern==='egg'){
+    body.scale.setScalar(.82);body.position.y=.07;
+    const shellMat=new THREE.MeshPhysicalMaterial({color:0xfff6e6,roughness:.35,clearcoat:.8,side:THREE.DoubleSide});
+    const spotMat=new THREE.MeshPhysicalMaterial({color:ltCol,roughness:.35,clearcoat:.6});
+    const shell=new THREE.Group();g.add(shell);
+    // untere Schale: Kugelteil mit Zickzack-Rand
+    const sg=new THREE.SphereGeometry(.4,64,24,0,Math.PI*2,Math.PI*.52,Math.PI*.48),sp=sg.attributes.position;
+    const rimY=Math.cos(Math.PI*.52)*.4;
+    for(let i=0;i<sp.count;i++){const x=sp.getX(i),y=sp.getY(i),z=sp.getZ(i);if(Math.abs(y-rimY)<1e-4){const a=Math.atan2(z,x);sp.setY(i,y+(Math.abs(((a*9/Math.PI)%2+2)%2-1))*.1);}}
+    sg.computeVertexNormals();const bottom=new THREE.Mesh(sg,shellMat);bottom.scale.set(1.05,1.15,.8);bottom.position.y=-.12;shell.add(bottom);
+    for(const [x,y] of [[-.2,-.33],[.16,-.4],[.02,-.26],[.27,-.24],[-.3,-.2]]){const d=ball(.04,spotMat);d.scale.z=.3;d.position.set(x,y,Math.sqrt(Math.max(.001,.16-x*x-(y+.12)*(y+.12)/1.3))*.8+.01);shell.add(d);}
+    // Schalen-Hütchen, schief aufgesetzt
+    const cg=new THREE.SphereGeometry(.2,48,16,0,Math.PI*2,0,Math.PI*.42),cp=cg.attributes.position,capY=Math.cos(Math.PI*.42)*.2;
+    for(let i=0;i<cp.count;i++){const y=cp.getY(i);if(Math.abs(y-capY)<1e-4){const a=Math.atan2(cp.getZ(i),cp.getX(i));cp.setY(i,y-(Math.abs(((a*7/Math.PI)%2+2)%2-1))*.05);}}
+    cg.computeVertexNormals();const capM=new THREE.Mesh(cg,shellMat);capM.position.set(.04,.36,0);capM.rotation.z=-.3;capM.scale.set(1,1,.8);shell.add(capM);
+  }
   g.traverse(o=>{if(o.material)o.material.envMapIntensity=.3;});shadowAll(g);scene.add(g);
   return {g,body,arms,pupils};
+}
+// Riesen-Bosse (neu im November 2026): ein Monster mit Hörnern, Zähnen, Krone, Flügeln oder Rückenzacken
+function giant(kind,hex,o={}){
+  const m=monster(kind,hex,o.pattern||'plain'),b=m.body;
+  const P=(c,x={})=>new THREE.MeshPhysicalMaterial(Object.assign({color:c,roughness:.3,clearcoat:.8},x));
+  const col=new THREE.Color(hex),dk=P(col.clone().lerp(new THREE.Color(0),.4));
+  const hornM=P(o.hornColor||0xfff1d6,{roughness:.35});
+  const hornAt=(pts,r0,r1)=>{const c=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));for(let i=0;i<=16;i++){const t=i/16,s=ball(r0+(r1-r0)*t,hornM);s.position.copy(c.getPoint(t));b.add(s);}};
+  if(o.horns===2)for(const sx of [-1,1])hornAt([[sx*.16,.24,0],[sx*.3,.36,0],[sx*.36,.5,0],[sx*.3,.6,0]],.06,.015);
+  if(o.horns===1)hornAt([[0,.3,0],[.03,.45,0],[0,.6,0],[-.06,.68,0]],.075,.015);
+  if(o.horns===4)for(const sx of [-1,1]){hornAt([[sx*.18,.24,0],[sx*.32,.36,0],[sx*.38,.5,0]],.05,.015);hornAt([[sx*.3,.02,0],[sx*.46,.06,0],[sx*.54,.2,0]],.045,.012);}
+  if(o.fangs){const t=P(0xffffff,{roughness:.1,clearcoat:1});for(const sx of [-1,1]){const f=new THREE.Mesh(new THREE.ConeGeometry(.035,.11,16),t);f.rotation.x=Math.PI;f.position.set(sx*.055,-.09,.34);b.add(f);}}
+  if(o.crown){const g=P(0xffc928,{metalness:.9,roughness:.2});const ring=new THREE.Mesh(new THREE.CylinderGeometry(.17,.15,.1,40,1,true),g);ring.material.side=THREE.DoubleSide;ring.position.y=.36;b.add(ring);
+    for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const sp=new THREE.Mesh(new THREE.ConeGeometry(.035,.12,12),g);sp.position.set(Math.cos(a)*.16,.46,Math.sin(a)*.16);b.add(sp);}
+    const gem=ball(.035,P(0xff3d7f,{roughness:.05}));gem.position.set(0,.36,.17);b.add(gem);}
+  if(o.wings){const wm=P(o.wingColor||0x3a2470,{side:THREE.DoubleSide,roughness:.4});
+    for(const sx of [-1,1]){const sh=new THREE.Shape();sh.moveTo(0,0);sh.quadraticCurveTo(sx*.25,.32,sx*.5,.28);sh.lineTo(sx*.42,.14);sh.lineTo(sx*.5,.04);sh.lineTo(sx*.38,-.04);sh.lineTo(sx*.42,-.16);sh.quadraticCurveTo(sx*.2,-.1,0,-.06);
+      const w=new THREE.Mesh(new THREE.ShapeGeometry(sh,16),wm);w.position.set(sx*.18,.06,-.12);w.rotation.y=-sx*.5;b.add(w);}}
+  if(o.spikes){for(let i=0;i<5;i++){const a=-.9+i*.45;const sp=new THREE.Mesh(new THREE.ConeGeometry(.045,.14,12),dk);sp.position.set(Math.sin(a)*.36,Math.cos(a)*.36,-.08);sp.rotation.z=-a;b.add(sp);}}
+  if(o.ears){for(const sx of [-1,1]){const e=ball(.1,dk);e.scale.z=.5;e.position.set(sx*.26,.28,-.02);b.add(e);}}
+  if(o.tentacles){for(let k=0;k<4;k++){const sx=k<2?-1:1,hi=k%2;const c=new THREE.CatmullRomCurve3([[sx*.3,-.1-hi*.1,0],[sx*.44,-.2-hi*.08,.03],[sx*.5,-.34-hi*.04,.02],[sx*.45,-.44,.03]].map(p=>new THREE.Vector3(...p)));
+    b.add(new THREE.Mesh(new THREE.TubeGeometry(c,24,.035,10,false),dk));}}
+  // Böse Augenbrauen: dick, dunkel und zur Mitte hin tief gezogen
+  { const bm=b.children.find(x=>x.isMesh),ray=new THREE.Raycaster(),browM=P(0x1d0d22,{roughness:.4});
+    const surf=(x,y)=>{ray.set(new THREE.Vector3(x,y,2),new THREE.Vector3(0,0,-1));const h=ray.intersectObject(bm)[0];return h?h.point.z:.3;};
+    const brow=(x1,y1,x2,y2)=>{const L=Math.hypot(x2-x1,y2-y1),c=cap(.032,L,browM),mx=(x1+x2)/2,my=(y1+y2)/2;
+      c.position.set(mx,my,surf(mx,my)+.045);c.rotation.z=Math.atan2(y2-y1,x2-x1)-Math.PI/2;b.add(c);};
+    if(kind==='cyclops'){brow(-.17,.3,0,.22);brow(0,.22,.17,.3);}
+    else{brow(-.25,.27,-.05,.19);brow(.25,.27,.05,.19);} }
+  shadowAll(m.g);m.g.traverse(x=>{if(x.material)x.material.envMapIntensity=.3;});
+  return m;
 }
 const mons=[monster('blob',0xff5d8f),monster('spike',0x5ac8fa),monster('bean',0x3ee0b0),monster('cyclops',0x7bdc5a)];
 
@@ -568,7 +740,7 @@ const clock=new THREE.Clock();let lineup=false,show=true,showNext=0,face='auto',
 function frame(){
   const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
   if(!drag){rotY+=velY;velY*=.93;idle+=dt;if(idle>2.5&&!reduce)rotY+=dt*.25;}
-  if(show&&t>showNext){const all=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly'].filter(k=>k!==pose);pose=all[Math.floor(Math.random()*all.length)];showNext=t+3.2+Math.random()*1.4;markPose();}
+  if(show&&t>showNext){const all=['flex','wave','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly','floss','dab','chicken','hula','stomp','run'].filter(k=>k!==pose);pose=all[Math.floor(Math.random()*all.length)];showNext=t+3.2+Math.random()*1.4;markPose();}
   if(MOVES[pose])applyMove(reduce?0:t);else applyPose(reduce?0:t);
   hero.rotation.y=rotY+moveExtra.turn;hero.rotation.z=moveExtra.sway;hero.rotation.x=moveExtra.lean||0;
   if(!reduce)waveCape(t);
@@ -590,7 +762,7 @@ function frame(){
 }
 // Mit ?render baut tools/render_sprites.js daraus die Bilder für die App (ohne Animationsschleife)
 if(location.search.includes('render')){
-  window.PUTZ={get arms(){return arms;},get legs(){return legs;},setBody,cape,saber,renderer,scene,camera,hero,mons,mat,costume,waveCape,headG,ground,glowDisc,monster,
+  window.PUTZ={get arms(){return arms;},get legs(){return legs;},setBody,cape,saber,renderer,scene,camera,hero,mons,mat,costume,waveCape,headG,ground,glowDisc,monster,ACC,giant,
     setPose:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyPose(t);},setMouth,MOVES,setMove:(p,t)=>{pose=p;for(let i=0;i<80;i++)applyMove(t);return moveExtra;}};
   document.getElementById('loading').remove();return;
 }

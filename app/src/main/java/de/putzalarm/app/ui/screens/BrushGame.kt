@@ -9,6 +9,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import de.putzalarm.app.data.GermColors
+import de.putzalarm.app.data.Giant
+import de.putzalarm.app.data.Monster
+import de.putzalarm.app.ui.art.Pattern
 import de.putzalarm.app.ui.art.GermKind
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -21,7 +24,10 @@ class FlyingGerm(
     val life: Float, val scream: String?,
     /** Tiefe: > 0 fliegt auf die Kamera zu (wird größer), < 0 fliegt nach hinten weg (wird kleiner). */
     val vz: Float = 0f,
+    /** Ein Monster aus dem eigenen Album (mit Muster und, wenn selten, Krone), sonst null. */
+    val album: Monster? = null,
 ) {
+    val pattern: Pattern get() = album?.pattern ?: Pattern.PLAIN
     var age = 0f
 
     /** Größenfaktor durch die Tiefe, 1 = auf Höhe des Mundes. */
@@ -35,6 +41,12 @@ class Splat(val x: Float, val y: Float, val color: Color, val size: Float, val p
 
 enum class Phase { COUNTDOWN, RUN, DONE }
 
+/** Riesen-Boss während des Putzens: kommt angeflogen, kämpft, wird besiegt oder haut am Ende ab. */
+enum class GiantPhase { WAITING, ARRIVING, FIGHT, BEATEN, ESCAPED }
+
+/** Ein Stern, der vom Mund zum Riesen-Boss fliegt. [t] läuft von 0 bis 1. */
+class Shot(val from: Offset, var t: Float = 0f)
+
 interface GameEvents {
     fun onCountdown(n: Int) {}
     fun onZone(zone: Int) {}
@@ -44,10 +56,20 @@ interface GameEvents {
     fun onCombo() {}
     fun onIdle() {}
     fun onFinish() {}
+    fun onGiantArrive(giant: Giant) {}
+    fun onGiantHit() {}
+    fun onGiantBeaten(giant: Giant) {}
 }
 
 /** [zoneStars]: 0 bis 3 Sterne je Kieferzone, je nachdem, wie lange dort wirklich geschrubbt wurde. */
-data class SessionResult(val monsters: Int, val zones: List<Boolean>, val zoneStars: List<Int> = zones.map { if (it) 2 else 0 }) {
+data class SessionResult(
+    val monsters: Int, val zones: List<Boolean>, val zoneStars: List<Int> = zones.map { if (it) 2 else 0 },
+    /** Wie oft welches Album-Monster wieder verjagt wurde (Id → Anzahl). */
+    val chased: Map<Int, Int> = emptyMap(),
+    /** Riesen-Boss dieser Runde (Id) und ob er besiegt wurde. */
+    val giant: Int? = null,
+    val giantBeaten: Boolean = false,
+) {
     val stars get() = zoneStars.sum()
 }
 
@@ -63,7 +85,14 @@ fun starsFor(activeShare: Float): Int = when {
  * Spiellogik des Putz-Bildschirms, unabhängig vom Zeichnen: Countdown, 4 Zonen à ¼ der Zeit,
  * Bakterien fliegen nur, solange wirklich geschrubbt wird, und Dauerschrubben baut eine Combo auf.
  */
-class BrushGame(val duration: Int, private val events: GameEvents) {
+class BrushGame(
+    val duration: Int,
+    private val events: GameEvents,
+    /** Album-Monster des Kindes: ein Teil der herausfliegenden Monster sind diese und steigen dadurch auf. */
+    private val album: List<Monster> = emptyList(),
+    /** Riesen-Boss, der in dieser Runde auftaucht, oder null. */
+    val giant: Giant? = null,
+) {
     var phase by mutableStateOf(Phase.COUNTDOWN); private set
     var countdown by mutableIntStateOf(3); private set
     var secondsLeft by mutableIntStateOf(duration); private set
@@ -90,7 +119,26 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
     private var idleHintT = 0f
     private var spawnAcc = 0f
 
-    val result get() = SessionResult(monsters, zoneDone.toList(), zoneStars.toList())
+    /** Wie oft welches Album-Monster in dieser Runde verjagt wurde. */
+    private val chased = HashMap<Int, Int>()
+
+    // Riesen-Boss: taucht zu Beginn von Zone 2 oder 3 auf; besiegt ist er nach [giantHpMax] Sekunden kräftigem Schrubben
+    var giantPhase by mutableStateOf(GiantPhase.WAITING); private set
+    val giantHpMax = duration * 0.2f
+    var giantHp = giantHpMax; private set
+    /** Zeit in der aktuellen Boss-Phase, Treffer-Wackeln (0 bis 1) und Lage auf dem Bildschirm. */
+    var giantT = 0f; private set
+    var giantHit = 0f; private set
+    var giantPos = Offset.Zero; private set
+    val shots = ArrayList<Shot>()
+    private val giantZone = if (Random.nextBoolean()) 1 else 2
+    private var shotAcc = 0f
+    private var hitSoundT = 0f
+
+    val result get() = SessionResult(
+        monsters, zoneDone.toList(), zoneStars.toList(), chased.toMap(),
+        giant?.id?.takeIf { giantPhase != GiantPhase.WAITING }, giantPhase == GiantPhase.BEATEN,
+    )
 
     /** [intensity]: wie kräftig gerade geschrubbt wird (0 bis 1); davon hängt ab, wie viele Monster herausfliegen. */
     fun step(dt: Float, active: Boolean, intensity: Float, mouth: Offset, unitPx: Float, w: Float, h: Float) {
@@ -136,7 +184,9 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                         spawn(mouth, unitPx)
                     }
                 }
+                stepGiant(dt, active, mouth, unitPx, w, h)
                 if (elapsed >= duration) {
+                    if (giantPhase == GiantPhase.FIGHT || giantPhase == GiantPhase.ARRIVING) { giantPhase = GiantPhase.ESCAPED; giantT = 0f }
                     closeZone()
                     secondsLeft = 0
                     idle = false
@@ -144,10 +194,46 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
                     events.onFinish()
                 }
             }
-            Phase.DONE -> Unit
+            Phase.DONE -> if (giantPhase == GiantPhase.BEATEN || giantPhase == GiantPhase.ESCAPED) giantT += dt
         }
         animate(dt, unitPx, w, h)
         frame++
+    }
+
+    private fun stepGiant(dt: Float, active: Boolean, mouth: Offset, u: Float, w: Float, h: Float) {
+        val g = giant ?: return
+        // Er schwebt auf der Seite, auf der das Gesicht gerade nicht ist
+        val target = Offset(if (mouth.x < w / 2) w * 0.75f else w * 0.25f, h * 0.36f)
+        giantPos = if (giantPos == Offset.Zero) target else giantPos + (target - giantPos) * (dt * 1.5f).coerceAtMost(1f)
+        giantHit = (giantHit - dt * 3f).coerceAtLeast(0f)
+        when (giantPhase) {
+            GiantPhase.WAITING -> if (zone >= giantZone && elapsed < duration - 8f) {
+                giantPhase = GiantPhase.ARRIVING; giantT = 0f; events.onGiantArrive(g)
+            }
+            GiantPhase.ARRIVING -> { giantT += dt; if (giantT > 1.6f) { giantPhase = GiantPhase.FIGHT; giantT = 0f } }
+            GiantPhase.FIGHT -> {
+                giantT += dt
+                if (active) {
+                    giantHp -= dt * (0.85f + 0.15f * combo)
+                    // Sterne fliegen vom Mund zum Boss
+                    shotAcc += dt
+                    if (shotAcc > 0.3f) { shotAcc = 0f; shots += Shot(mouth) }
+                }
+                if (giantHp <= 0f) { giantHp = 0f; giantPhase = GiantPhase.BEATEN; giantT = 0f; shots.clear(); events.onGiantBeaten(g) }
+            }
+            GiantPhase.BEATEN, GiantPhase.ESCAPED -> giantT += dt
+        }
+        val shotIter = shots.iterator()
+        while (shotIter.hasNext()) {
+            val s = shotIter.next()
+            s.t += dt * 2.2f
+            if (s.t >= 1f) {
+                shotIter.remove()
+                giantHit = 1f
+                hitSoundT -= 1f
+                if (hitSoundT <= 0f) { hitSoundT = 3f; events.onGiantHit() }
+            }
+        }
     }
 
     private fun closeZone() {
@@ -169,15 +255,18 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
         }
         val speed = (26f + Random.nextFloat() * 22f) * u * when { vz > 0f -> 0.6f; vz < 0f -> 0.35f; else -> 1f }
         val scream = if (Random.nextFloat() < 0.35f) Screams.keys.random().takeIf { events.onScream(it) } else null
+        // Etwa jedes dritte Monster ist ein alter Bekannter aus dem Album
+        val pick = if (album.isNotEmpty() && Random.nextFloat() < 0.35f) album.random() else null
         germs += FlyingGerm(
             x = mouth.x + (Random.nextFloat() - 0.5f) * 3f * u,
             y = mouth.y + (Random.nextFloat() - 0.5f) * 1.5f * u,
             vx = cos(a) * speed, vy = sin(a) * speed,
             rot = Random.nextFloat() * 40f - 20f, spin = Random.nextFloat() * 160f - 80f,
             size = (6f + Random.nextFloat() * 3.5f) * u,
-            color = GermColors.random(), kind = GermKind.entries.random(), seed = Random.nextFloat() * 6f,
-            life = if (vz > 0f) 9f else 1.3f + Random.nextFloat() * 1.1f, scream = scream, vz = vz,
+            color = pick?.color ?: GermColors.random(), kind = pick?.kind ?: GermKind.entries.random(), seed = Random.nextFloat() * 6f,
+            life = if (vz > 0f) 9f else 1.3f + Random.nextFloat() * 1.1f, scream = scream, vz = vz, album = pick,
         )
+        if (pick != null) chased[pick.id] = (chased[pick.id] ?: 0) + 1
         monsters++
     }
 

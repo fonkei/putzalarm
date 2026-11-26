@@ -22,8 +22,11 @@ import java.util.UUID
 private val OldKinds = listOf(GermKind.BLOB, GermKind.SPIKE, GermKind.BEAN, GermKind.CYCLOPS)
 
 /** Ein Monster aus dem Sammelalbum. */
-/** [rare]: seltenes Monster mit Krone, gibt es nur nach sehr gründlichem Putzen. */
-data class Monster(val id: Int, val name: String, val color: Color, val kind: GermKind, val rare: Boolean = false, val pattern: Pattern = Pattern.PLAIN)
+/** [rare]: seltenes Monster mit Krone, gibt es nur nach sehr gründlichem Putzen. [egg]: schlüpft nur aus dem Überraschungsei. */
+data class Monster(
+    val id: Int, val name: String, val color: Color, val kind: GermKind, val rare: Boolean = false, val pattern: Pattern = Pattern.PLAIN,
+    val egg: Boolean = false,
+)
 
 private val Palette = listOf(
     Color(0xFFFF5D8F), Color(0xFF7BDC5A), Color(0xFFFFB627), Color(0xFF5AC8FA),
@@ -88,7 +91,62 @@ val Monsters: List<Monster> = listOf(
     Triple("Zar Zuckerwürfel", GermKind.CUBE, Pattern.STRIPES),
 ).mapIndexed { i, (name, kind, pattern) ->
     Monster(60 + i, name, Palette[(i * 3 + 4) % Palette.size], kind, rare = true, pattern = pattern)
+} + listOf(
+    // Neu im November 2026: Schlüpflinge, die es nur im Überraschungsei gibt (Form und Farbe wie in tools/render_extras.js)
+    Triple("Schlupfi", GermKind.BLOB, 0),
+    Triple("Sternküken", GermKind.STAR, 7),
+    Triple("Tröpfchen", GermKind.DROP, 3),
+    Triple("Bohnibaby", GermKind.BEAN, 4),
+    Triple("Würfelküken", GermKind.CUBE, 6),
+    Triple("Wackelbaby", GermKind.JELLY, 1),
+    Triple("Pieksküken", GermKind.SPIKE, 2),
+    Triple("Guckiküken", GermKind.CYCLOPS, 5),
+).mapIndexed { i, (name, kind, c) ->
+    Monster(64 + i, name, Palette[c], kind, pattern = Pattern.EGG, egg = true)
 }
+
+/** Album-Monster werden größer, je öfter man sie wieder verjagt: ab so vielen Malen gibt es Stufe 2, 3, 4 und 5. */
+val LevelSteps = listOf(3, 8, 15, 25)
+const val MaxLevel = 5
+
+/** Stufe eines Monsters (1 bis 5) nach [chased]-mal Verjagen. */
+fun monsterLevel(chased: Int): Int = 1 + LevelSteps.count { chased >= it }
+
+/** Riesen-Bosse: tauchen ab und zu mitten beim Putzen auf (an jedem Tag) und werden mit kräftigem Schrubben besiegt. */
+data class Giant(val id: Int, val name: String)
+
+/** Reihenfolge = Bildnummer (giant_<id>_f0) und gespeicherte Siege; nur hinten anhängen. */
+val Giants = listOf(
+    Giant(0, "Bonbon-Bulle"), Giant(1, "Schoko-Flatterich"), Giant(2, "Zacken-Zyklop"), Giant(3, "Kaugummi-Kaiser"),
+    Giant(4, "Krakenkrümel"), Giant(5, "Lakritz-Drache"), Giant(6, "Karamell-König"), Giant(7, "Limo-Teufelchen"),
+)
+
+/** Bonus-Sterne für einen besiegten Riesen-Boss. */
+const val GiantStars = 3
+
+/** Felder auf der Schatzkarte; auf dem letzten steht die Schatzkiste. Jedes Putzen ist ein Feld weiter. */
+const val MapLen = 10
+
+/** Bonus-Sterne aus einer Schatzkiste, wenn es keine Kisten-Ausrüstung mehr gibt. */
+const val ChestStars = 10
+
+/** Was eine Putzrunde gebracht hat (für den Ergebnis-Bildschirm). */
+data class SessionOutcome(
+    /** Neuer Album-Sticker (normal oder selten). */
+    val sticker: Int? = null,
+    /** Schlüpfling aus dem Überraschungsei; [eggStars] > 0, wenn es schon alle gab und das Ei Sterne enthielt. */
+    val egg: Int? = null,
+    val eggStars: Int = 0,
+    /** Album-Monster, die eine Stufe aufgestiegen sind: Id und neue Stufe. */
+    val levelUps: List<Pair<Int, Int>> = emptyList(),
+    /** Schritte auf der Schatzkarte vor dieser Runde. */
+    val mapBefore: Int = 0,
+    /** Nummer der Schatzkiste, die diesmal aufging (0 = erste), sonst null; [chestStars] > 0 bei Sternen statt Ausrüstung. */
+    val chest: Int? = null,
+    val chestStars: Int = 0,
+    /** Alle Sterne dieser Runde: Zonen-Sterne plus Boni. */
+    val starsTotal: Int = 0,
+)
 
 /** Boss-Monster: jede Woche (Mo bis So) kommt eins. Besiegt wird es mit den Sternen der ganzen Woche. */
 data class Boss(val id: Int, val name: String, val color: Color, val kind: GermKind)
@@ -139,7 +197,32 @@ data class Child(
     /** Gewählter Hintergrund und Ergebnis-Effekt (Nummern aus Backdrop und Effect). */
     val backdrop: Int = 0,
     val effect: Int = 0,
+    /** Neu im November 2026 (alle mit Standardwert, alte Profile laden unverändert): */
+    /** Wie oft jedes Album-Monster schon wieder verjagt wurde (Id → Anzahl); davon hängt seine Stufe ab. */
+    val chases: Map<Int, Int> = emptyMap(),
+    /** Putzrunden seit dem letzten Überraschungsei. */
+    val eggTimer: Int = 0,
+    /** Alle Schritte auf der Schatzkarte (ein Schritt je Putzrunde, seit es die Karte gibt). */
+    val mapSteps: Int = 0,
+    /** Putzrunden seit dem letzten Riesen-Boss und alle besiegten Riesen-Bosse (Ids). */
+    val giantTimer: Int = 0,
+    val giantWins: List<Int> = emptyList(),
+    /** Getragener Hut und getragene Brille (Gear-Key, leer = keins). */
+    val hat: String = "",
+    val glasses: String = "",
 ) {
+    /** Geöffnete Schatzkisten und das Feld auf der aktuellen Karte (0 bis MapLen - 1). */
+    val chests: Int get() = mapSteps / MapLen
+    val mapField: Int get() = mapSteps % MapLen
+
+    fun level(monsterId: Int): Int = monsterLevel(chases[monsterId] ?: 0)
+
+    /** Welcher Riesen-Boss als Nächstes kommt: der am seltensten besiegte (bei Gleichstand der erste). */
+    val nextGiant: Giant get() = Giants.minBy { g -> giantWins.count { it == g.id } * 100 + g.id }
+
+    /** Ob in der nächsten Putzrunde ein Riesen-Boss auftaucht: spätestens nach drei Runden ohne, sonst etwa jedes dritte Mal. */
+    fun rollGiant(): Giant? = if (giantTimer >= 3 || kotlin.random.Random.nextFloat() < 0.3f) nextGiant else null
+
     /** Schaden am Boss dieser Woche; in einer neuen Woche fängt es bei 0 an. */
     val bossDamageNow: Int get() = if (bossWeek == weekKey()) bossDamage else 0
     val bossBeatenNow: Boolean get() = bossDamageNow >= BossHp
@@ -257,24 +340,56 @@ class ProfileStore(context: Context) {
         save()
     }
 
-    /** Trägt eine fertige Putzrunde ein und schaltet einen neuen Sticker frei. Gibt dessen Id zurück. */
-    fun recordSession(id: String, monstersChased: Int, starsEarned: Int): Int? {
+    /**
+     * Trägt eine fertige Putzrunde ein: Sticker, Überraschungsei, Monster-Stufen, Schatzkarte, Riesen-Boss und Sterne.
+     * [zoneStars]: Sterne aus den Kieferzonen, [chased]: wie oft welches Album-Monster verjagt wurde,
+     * [giant]: Riesen-Boss dieser Runde (oder null) und ob er besiegt wurde. Boni wie Kisten-Ausrüstung schaltet die Karte frei.
+     */
+    fun recordSession(
+        id: String, monstersChased: Int, zoneStars: Int,
+        chased: Map<Int, Int> = emptyMap(), giant: Int? = null, giantBeaten: Boolean = false,
+    ): SessionOutcome? {
         val c = get(id) ?: return null
-        // Nach sehr gründlichem Putzen gibt es ein seltenes Monster, sonst ein normales
-        val (rare, normal) = Monsters.filterNot { it.id in c.stickers }.partition { it.rare }
-        val fresh = (if (starsEarned >= RareStars) rare.randomOrNull() ?: normal.randomOrNull() else normal.randomOrNull())?.id
+        // Nach sehr gründlichem Putzen gibt es ein seltenes Monster, sonst ein normales (Schlüpflinge nur aus dem Ei)
+        val (rare, normal) = Monsters.filterNot { it.id in c.stickers || it.egg }.partition { it.rare }
+        val fresh = (if (zoneStars >= RareStars) rare.randomOrNull() ?: normal.randomOrNull() else normal.randomOrNull())?.id
+        // Überraschungsei: etwa jede vierte Runde, spätestens nach fünf Runden ohne
+        val eggNow = c.eggTimer >= 4 || kotlin.random.Random.nextFloat() < 0.2f
+        val eggMonster = if (eggNow) Monsters.filter { it.egg && it.id !in c.stickers }.randomOrNull()?.id else null
+        val eggStars = if (eggNow && eggMonster == null) 5 else 0
+        // Monster-Stufen
+        val chases = c.chases.toMutableMap()
+        val ups = mutableListOf<Pair<Int, Int>>()
+        for ((mid, n) in chased) {
+            if (n <= 0) continue
+            val before = monsterLevel(chases[mid] ?: 0)
+            chases[mid] = (chases[mid] ?: 0) + n
+            val after = monsterLevel(chases[mid]!!)
+            if (after > before) ups += mid to after
+        }
+        // Schatzkarte: ein Feld weiter; auf dem letzten Feld geht die Kiste auf
+        val steps = c.mapSteps + 1
+        val chest = if (steps % MapLen == 0) steps / MapLen - 1 else null
+        val chestStars = if (chest != null && chest >= ChestGear.size) ChestStars else 0
+        val giantStars = if (giant != null && giantBeaten) GiantStars else 0
+        val total = zoneStars + giantStars + eggStars + chestStars
         upsert(
             c.copy(
                 monsters = c.monsters + monstersChased,
-                stars = c.stars + starsEarned,
+                stars = c.stars + total,
                 bossWeek = weekKey(),
-                bossDamage = c.bossDamageNow + starsEarned,
-                bossWins = if (c.bossDamageNow < BossHp && c.bossDamageNow + starsEarned >= BossHp) c.bossWins + bossOfWeek().id else c.bossWins,
+                bossDamage = c.bossDamageNow + total,
+                bossWins = if (c.bossDamageNow < BossHp && c.bossDamageNow + total >= BossHp) c.bossWins + bossOfWeek().id else c.bossWins,
                 sessions = (c.sessions + System.currentTimeMillis()).takeLast(200),
-                stickers = if (fresh != null) c.stickers + fresh else c.stickers,
+                stickers = c.stickers + listOfNotNull(fresh, eggMonster),
+                chases = chases,
+                eggTimer = if (eggNow) 0 else c.eggTimer + 1,
+                mapSteps = steps,
+                giantTimer = if (giant != null) 0 else c.giantTimer + 1,
+                giantWins = if (giant != null && giantBeaten) c.giantWins + giant else c.giantWins,
             ),
         )
-        return fresh
+        return SessionOutcome(fresh, eggMonster, eggStars, ups, c.mapSteps, chest, chestStars, total)
     }
 
     /**
@@ -310,6 +425,13 @@ class ProfileStore(context: Context) {
                     bossWins = o.optJSONArray("bossWins").ints(),
                     backdrop = o.optInt("backdrop"),
                     effect = o.optInt("effect"),
+                    chases = o.optJSONObject("chases").intMap(),
+                    eggTimer = o.optInt("eggTimer"),
+                    mapSteps = o.optInt("mapSteps"),
+                    giantTimer = o.optInt("giantTimer"),
+                    giantWins = o.optJSONArray("giantWins").ints(),
+                    hat = o.optString("hat"),
+                    glasses = o.optString("glasses"),
                 )
             }
         }
@@ -334,7 +456,11 @@ class ProfileStore(context: Context) {
                     .put("stars", c.stars)
                     .put("costume", c.costume).put("cape", c.cape)
                     .put("bossWeek", c.bossWeek).put("bossDamage", c.bossDamage).put("bossWins", JSONArray(c.bossWins))
-                    .put("backdrop", c.backdrop).put("effect", c.effect),
+                    .put("backdrop", c.backdrop).put("effect", c.effect)
+                    .put("chases", JSONObject().apply { c.chases.forEach { (k, v) -> put(k.toString(), v) } })
+                    .put("eggTimer", c.eggTimer).put("mapSteps", c.mapSteps)
+                    .put("giantTimer", c.giantTimer).put("giantWins", JSONArray(c.giantWins))
+                    .put("hat", c.hat).put("glasses", c.glasses),
             )
         }
         synchronized(this) {
@@ -353,4 +479,6 @@ class ProfileStore(context: Context) {
 }
 
 private fun JSONArray?.ints(): List<Int> = if (this == null) emptyList() else (0 until length()).map { getInt(it) }
+private fun JSONObject?.intMap(): Map<Int, Int> =
+    if (this == null) emptyMap() else keys().asSequence().mapNotNull { k -> k.toIntOrNull()?.let { it to optInt(k) } }.toMap()
 private fun JSONArray?.longs(): List<Long> = if (this == null) emptyList() else (0 until length()).map { getLong(it) }

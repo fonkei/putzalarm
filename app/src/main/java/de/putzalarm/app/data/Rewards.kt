@@ -2,6 +2,8 @@ package de.putzalarm.app.data
 
 import androidx.compose.ui.graphics.Color
 import de.putzalarm.app.ui.art.Costume
+import de.putzalarm.app.ui.art.Gear
+import de.putzalarm.app.ui.art.GearSlot
 import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Outfit
 
@@ -9,8 +11,10 @@ import de.putzalarm.app.ui.art.Outfit
 val CapeColors = listOf(
     Color(0xFFFF3D7F), Color(0xFF2F6BFF), Color(0xFFFFC928), Color(0xFF4CD964), Color(0xFF9B5BFF), Color(0xFF2A2A3A),
     Color(0xFFFF3B30), Color(0xFFDDE3EC),
+    // Neu im November 2026 (nur hinten anhängen, die Nummer ist gespeichert)
+    Color(0xFFFF8A00), Color(0xFF00C2C7), Color(0xFFFFA8D2),
 )
-private val CapeWords = listOf("pinker", "blauer", "goldener", "grüner", "lila", "schwarzer", "roter", "silberner")
+private val CapeWords = listOf("pinker", "blauer", "goldener", "grüner", "lila", "schwarzer", "roter", "silberner", "oranger", "türkiser", "rosa")
 
 /** Etwas, das ein Kind mit gesammelten Sternen für Super Bürsti freischaltet. [stars]: ab so vielen Sternen insgesamt. */
 sealed interface Reward {
@@ -34,6 +38,30 @@ data class BackdropReward(override val stars: Int, val backdrop: Backdrop) : Rew
 data class EffectReward(override val stars: Int, val effect: Effect) : Reward {
     override val spoken get() = effect.spoken
 }
+
+/** Ein Hut, Helm oder eine Brille für Super Bürsti. */
+data class GearReward(override val stars: Int, val gear: Gear) : Reward {
+    override val spoken get() = gear.spoken
+}
+
+/** So sagt Super Bürsti ein Ausrüstungsteil an. */
+val Gear.spoken: String
+    get() = when (this) {
+        Gear.PARTY -> "ein Partyhut"
+        Gear.COWBOY -> "ein Cowboyhut"
+        Gear.WIKINGER -> "ein Wikingerhelm"
+        Gear.FEUERWEHR -> "ein Feuerwehrhelm"
+        Gear.BAUHELM -> "ein Bauarbeiterhelm"
+        Gear.PIRAT -> "ein Piratenhut"
+        Gear.KRONE -> "eine goldene Krone"
+        Gear.ZAUBERER -> "ein Zauberhut"
+        Gear.SONNENBRILLE -> "eine coole Sonnenbrille"
+        Gear.HERZBRILLE -> "eine Herzchenbrille"
+        Gear.TAUCHER -> "eine Taucherbrille mit Schnorchel"
+    }
+
+/** Ausrüstung, die es nur in den Schatzkisten der Schatzkarte gibt, in dieser Reihenfolge (eine pro Kiste). */
+val ChestGear = listOf(Gear.PIRAT, Gear.KRONE, Gear.TAUCHER, Gear.ZAUBERER)
 
 /** Super Bürsti erzählt Witze, wenn man ihn antippt. */
 data class JokesReward(override val stars: Int) : Reward {
@@ -78,6 +106,26 @@ val Rewards: List<Reward> = listOf(
     EffectReward(600, Effect.STARS),
     CapeReward(650, 7),
     BackdropReward(700, Backdrop.RAINBOW),
+    // Neu im November 2026: Hüte, Brillen, neue Moves, Kostüme und Umhänge (auch dazwischen; wer schon so viele
+    // Sterne hat, findet sie gleich frei im Schrank)
+    GearReward(25, Gear.PARTY),
+    MoveReward(60, HeroPose.FLOSS, "der Zahnseide-Tanz"),
+    GearReward(80, Gear.SONNENBRILLE),
+    MoveReward(125, HeroPose.DAB, "der Dab"),
+    GearReward(155, Gear.COWBOY),
+    MoveReward(185, HeroPose.CHICKEN, "der Hühnertanz"),
+    GearReward(250, Gear.HERZBRILLE),
+    MoveReward(290, HeroPose.HULA, "der Hula-Tanz"),
+    GearReward(345, Gear.WIKINGER),
+    CostumeReward(420, Costume.FEUER, "der feuerrote Anzug"),
+    MoveReward(460, HeroPose.STOMP, "das Monster-Stampfen"),
+    GearReward(540, Gear.FEUERWEHR),
+    MoveReward(580, HeroPose.RUN, "das Rennen"),
+    GearReward(620, Gear.BAUHELM),
+    CapeReward(680, 8),
+    CostumeReward(750, Costume.EIS, "der glitzernde Eis-Anzug"),
+    CapeReward(820, 9),
+    CapeReward(900, 10),
 ).sortedBy { it.stars }
 
 /** Sterne, ab denen ein Kostüm, ein Umhang oder ein Move frei ist (0 = von Anfang an). */
@@ -86,6 +134,11 @@ fun capeStars(i: Int) = Rewards.filterIsInstance<CapeReward>().firstOrNull { it.
 fun moveStars(p: HeroPose) = Rewards.filterIsInstance<MoveReward>().firstOrNull { it.pose == p }?.stars ?: 0
 fun backdropStars(b: Backdrop) = Rewards.filterIsInstance<BackdropReward>().firstOrNull { it.backdrop == b }?.stars ?: 0
 fun effectStars(e: Effect) = Rewards.filterIsInstance<EffectReward>().firstOrNull { it.effect == e }?.stars ?: 0
+/** Ausrüstung: Kisten-Teile sind mit der passenden Schatzkiste frei, die übrigen ab ihren Sternen. */
+fun gearStars(g: Gear) = Rewards.filterIsInstance<GearReward>().firstOrNull { it.gear == g }?.stars ?: 0
+fun Child.hasGear(g: Gear): Boolean = ChestGear.indexOf(g).let { i -> if (i >= 0) chests > i else stars >= gearStars(g) }
+/** Zieht [g] an (ersetzt den Hut bzw. die Brille). */
+fun Child.wearing(g: Gear): Child = if (g.slot == GearSlot.HAT) copy(hat = g.key) else copy(glasses = g.key)
 val Child.hasJokes get() = stars >= (Rewards.filterIsInstance<JokesReward>().firstOrNull()?.stars ?: 0)
 
 /** Gewählter Hintergrund und Effekt, wenn schon frei (sonst die Grundeinstellung). */
@@ -104,5 +157,7 @@ val Child.outfit: Outfit
     get() {
         val suit = Costume.entries.firstOrNull { it.key == this.costume }?.takeIf { stars >= costumeStars(it) } ?: Costume.GOLD
         val capeIdx = this.cape.takeIf { it in CapeColors.indices && stars >= capeStars(it) } ?: 0
-        return Outfit(suit, CapeColors[capeIdx], HeroPose.entries.filter { stars >= moveStars(it) })
+        val gear = listOfNotNull(Gear.of(hat)?.takeIf { it.slot == GearSlot.HAT }, Gear.of(glasses)?.takeIf { it.slot == GearSlot.GLASSES })
+            .filter { hasGear(it) }
+        return Outfit(suit, CapeColors[capeIdx], HeroPose.entries.filter { stars >= moveStars(it) }, gear)
     }

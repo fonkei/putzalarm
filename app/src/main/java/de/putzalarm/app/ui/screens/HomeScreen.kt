@@ -66,6 +66,7 @@ fun HomeScreen(
     onAlbum: () -> Unit,
     onWardrobe: () -> Unit,
     onSwitch: () -> Unit,
+    onMap: () -> Unit = {},
     greet: (String) -> Unit,
 ) {
     val isDarth = child.outfit.costume == de.putzalarm.app.ui.art.Costume.DARTH
@@ -99,6 +100,20 @@ fun HomeScreen(
                     BossImage(boss, Modifier.size(6.u), beaten = beaten)
                     BossBar(1f - child.bossDamageNow.toFloat() / BossHp, Modifier.width(14.u).height(2.4.u))
                     if (beaten) IconArt(Icon.CHECK, Modifier.size(3.4.u))
+                }
+            }
+            Spacer(Modifier.width(2.u))
+            // Schatzkarte: Kiste und wie weit es noch ist (gefüllte Punkte = geschaffte Felder)
+            ComicButton(onMap, bg = Color(0xFFBFE8FF), radius = 2.u, border = 0.45.u, shadow = 0.7.u, padding = 1.u) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.8.u)) {
+                    ChestIcon(Modifier.width(5.u))
+                    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(0.3.u)) {
+                        for (row in 0 until 2) Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
+                            for (i in row * 5 until row * 5 + 5) Box(
+                                Modifier.size(1.2.u).background(if (i < child.mapField) M.Yellow else Color.White, CircleShape).border(0.15.u, M.Ink, CircleShape),
+                            )
+                        }
+                    }
                 }
             }
         }
