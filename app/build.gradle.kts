@@ -14,11 +14,33 @@ android {
         applicationId = "de.putzalarm.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        // Auf dem PC bleibt es 1. Der GitHub-Build setzt die Laufnummer ein, damit jede neue
+        // Version über die alte installiert werden kann.
+        versionCode = System.getenv("PUTZALARM_VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = "0.1.0"
     }
 
+    // Fester Schlüssel nur für den GitHub-Build (Releases fürs zweite Tablet). Ohne die
+    // Umgebungsvariable (z. B. auf dem PC mit "Putzalarm aufs Tablet.bat") bleibt alles beim
+    // normalen Debug-Schlüssel, sonst gingen die Daten auf dem ersten Tablet verloren.
+    val releaseKeystore = System.getenv("PUTZALARM_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+    if (releaseKeystore != null) {
+        signingConfigs {
+            create("putzalarm") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("PUTZALARM_KEYSTORE_PASSWORD") ?: "putzalarm"
+                keyAlias = "putzalarm"
+                keyPassword = System.getenv("PUTZALARM_KEYSTORE_PASSWORD") ?: "putzalarm"
+            }
+        }
+    }
+
     buildTypes {
+        if (releaseKeystore != null) {
+            debug {
+                signingConfig = signingConfigs.getByName("putzalarm")
+            }
+        }
         release {
             isMinifyEnabled = false
             // Bis es einen eigenen Schlüssel gibt, wird auch Release mit dem Debug-Schlüssel signiert.
