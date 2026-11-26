@@ -219,7 +219,6 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
     companion object {
         /** Was die Monster rufen: Sprechblasen-Text und, wie die Sprachausgabe es sprechen soll. */
         val Screams = linkedMapOf(
-            "Hilfe!" to "Hilfe!",
             "Mamaaa!" to "Mamaa!",
             "Aaaah!" to "Aaaaaaa!",
             "Nein, nein, nein!" to "Nein, nein, nein!",

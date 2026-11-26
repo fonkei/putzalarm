@@ -1544,12 +1544,6 @@
  {
   "rolle": "monster1",
   "stimme": "Monster, ängstlich (Stimme 1)",
-  "text": "Hilfe!",
-  "datei": "app/src/main/assets/stimme/monster1/41b24d3bcf15.mp3"
- },
- {
-  "rolle": "monster1",
-  "stimme": "Monster, ängstlich (Stimme 1)",
   "text": "Mamaa!",
   "datei": "app/src/main/assets/stimme/monster1/77fccf6b12ee.mp3"
  },
@@ -1838,12 +1832,6 @@
  {
   "rolle": "monster2",
   "stimme": "Monster, ängstlich (Stimme 2)",
-  "text": "Hilfe!",
-  "datei": "app/src/main/assets/stimme/monster2/41b24d3bcf15.mp3"
- },
- {
-  "rolle": "monster2",
-  "stimme": "Monster, ängstlich (Stimme 2)",
   "text": "Mamaa!",
   "datei": "app/src/main/assets/stimme/monster2/77fccf6b12ee.mp3"
  },
@@ -2128,12 +2116,6 @@
   "stimme": "Monster, ängstlich (Stimme 2)",
   "text": "Ich komm nie wieder!",
   "datei": "app/src/main/assets/stimme/monster2/f5528b6ac27c.mp3"
- },
- {
-  "rolle": "monster3",
-  "stimme": "Monster, ängstlich (Stimme 3)",
-  "text": "Hilfe!",
-  "datei": "app/src/main/assets/stimme/monster3/41b24d3bcf15.mp3"
  },
  {
   "rolle": "monster3",
