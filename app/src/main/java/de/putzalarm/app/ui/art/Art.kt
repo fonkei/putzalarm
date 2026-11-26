@@ -125,6 +125,8 @@ fun Mascot(
                 }
             }
         }
+        // Ausrüstung über dem Körper: erst die Brille, dann der Hut (Darth Bürsti behält nur seinen Helm)
+        if (look.costume != Costume.DARTH) for (g in look.gear.sortedByDescending { it.slot.ordinal }) Sprites.gear(g, shown, frame)?.let { put(it) }
     }
 }
 
@@ -132,6 +134,16 @@ private val StarPath = Path().apply {
     val pts = listOf(50f to 6f, 62f to 36f, 94f to 38f, 69f to 58f, 77f to 90f, 50f to 72f, 23f to 90f, 31f to 58f, 6f to 38f, 38f to 36f)
     pts.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x, y) else lineTo(x, y) }
     close()
+}
+
+/** Ein Comic-Stern mit Tinten-Rand, [d] = Breite, Mitte = [c]. */
+fun DrawScope.drawStar(c: Offset, d: Float, fill: Color = M.Yellow, alpha: Float = 1f) {
+    translate(c.x - d / 2, c.y - d / 2) {
+        scale(d / 100f, d / 100f, Offset.Zero) {
+            drawPath(StarPath, fill, alpha = alpha)
+            drawPath(StarPath, M.Ink, style = round(6f), alpha = alpha)
+        }
+    }
 }
 
 @Composable

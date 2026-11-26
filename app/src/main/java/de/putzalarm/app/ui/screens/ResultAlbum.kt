@@ -43,6 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.Monsters
+import de.putzalarm.app.data.SessionOutcome
+import de.putzalarm.app.data.Giants
+import de.putzalarm.app.data.GiantStars
+import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.ui.art.GiantImage
 import de.putzalarm.app.data.newRewards
 import de.putzalarm.app.data.effectNow
 import de.putzalarm.app.ui.art.CelebrationOverlay
@@ -67,20 +72,34 @@ import de.putzalarm.app.ui.theme.u
 
 /** Ergebnis nach dem Putzen: Sterne, sauberes Gebiss, Monster-Zahl und der neue Sticker. */
 @Composable
-fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: () -> Unit, onAlbum: () -> Unit, say: (String) -> Unit) {
+fun ResultScreen(
+    child: Child, result: SessionResult, outcome: SessionOutcome, onHome: () -> Unit, onAlbum: () -> Unit, say: (String) -> Unit,
+    sfx: de.putzalarm.app.audio.Sfx? = null,
+) {
+    val newSticker = outcome.sticker
+    val earned = outcome.starsTotal
     val clean = result.zones.count { it }
     val stars = when { result.stars >= 10 -> 3; result.stars >= 6 -> 2; else -> 1 }
     val missed = result.zones.indexOfFirst { !it }
-    val unlocked = newRewards(child.stars - result.stars, child.stars)
-    LaunchedEffect(Unit) {
+    val unlocked = newRewards(child.stars - earned, child.stars)
+    // Erst die Überraschungen (Ei, dann Schatzkiste), danach das Ergebnis mit Ansage
+    val scenes = remember { listOfNotNull("ei".takeIf { outcome.egg != null || outcome.eggStars > 0 }, "kiste".takeIf { outcome.chest != null }) }
+    var scene by remember { mutableStateOf(0) }
+    val ready = scene >= scenes.size
+    LaunchedEffect(ready) {
+        if (!ready) return@LaunchedEffect
         val sticker = newSticker?.let { Monsters[it] }?.let { if (it.rare) " Wow, ein seltenes Monster: ${it.name}!" else " Neu im Album: ${it.name}!" } ?: ""
-        val starLine = if (result.stars == 1) " Ein Stern für dich!" else if (result.stars > 1) " ${result.stars} Sterne für dich!" else ""
+        val starLine = if (earned == 1) " Ein Stern für dich!" else if (earned > 1) " $earned Sterne für dich!" else ""
         val reward = unlocked.lastOrNull()?.let { " Und neu für Super Bürsti: ${it.spoken}!" } ?: ""
         val after = child.bossDamageNow
-        val boss = if (after >= BossHp && after - result.stars < BossHp) " Und du hast den Boss ${bossOfWeek().name} besiegt! Wahnsinn!" else ""
-        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + boss + sticker + reward)
+        val boss = if (after >= BossHp && after - earned < BossHp) " Und du hast den Boss ${bossOfWeek().name} besiegt! Wahnsinn!" else ""
+        val giant = result.giant?.let { Giants.getOrNull(it) }?.let { g ->
+            if (result.giantBeaten) " Den Riesen-Boss ${g.name} hast du auch besiegt!" else " ${g.name} ist entkommen. Nächstes Mal schaffst du ihn!"
+        } ?: ""
+        val grown = outcome.levelUps.firstOrNull()?.let { (id, lv) -> " ${Monsters[id].name} ist gewachsen!" } ?: ""
+        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + giant + boss + sticker + grown + reward)
     }
-    BackHandler(onBack = onHome)
+    BackHandler(onBack = { if (ready) onHome() else scene++ })
     Box(Modifier.fillMaxSize()) {
     Box(Modifier.fillMaxSize().background(M.Blue).padding(horizontal = 5.u, vertical = 4.u)) {
         BasicText(if (clean == 4) "Super geputzt!" else "Gut gemacht!", style = lilita(6.6, Color.White), modifier = Modifier.align(Alignment.TopStart))
@@ -112,11 +131,11 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                     }
                     Row(card.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.u)) {
                         Star(true, Modifier.width(5.u))
-                        BasicText("+${result.stars}", style = lilita(4.4))
+                        BasicText("+$earned", style = lilita(4.4))
                     }
                 }
                 BossHit(
-                    child, result.stars,
+                    child, earned,
                     Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 2.4.u, vertical = 1.4.u),
                 )
                 // Was dazwischen passt, darf scrollen; die Knöpfe unten bleiben immer ganz
@@ -142,6 +161,48 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
                             BasicText("Da verstecken sich noch welche. Nächstes Mal erwischst du sie!", style = nunito(1.8))
                         }
                     }
+                    // Riesen-Boss dieser Runde: besiegt mit Sternen, sonst fliegt er davon
+                    result.giant?.let { id ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(if (result.giantBeaten) M.Mint else Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 0.8.u),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(1.6.u),
+                        ) {
+                            GiantImage(id, Modifier.size(8.u), tint = if (result.giantBeaten) null else M.Ink.copy(alpha = 0.2f))
+                            if (result.giantBeaten) {
+                                IconArt(Icon.CHECK, Modifier.size(4.u))
+                                repeat(GiantStars) { Star(true, Modifier.width(3.4.u)) }
+                            } else IconArt(Icon.CLOSE, Modifier.size(3.6.u), color = M.Ink.copy(alpha = 0.5f))
+                        }
+                    }
+                    // Monster, die durch erneutes Verjagen gewachsen sind
+                    if (outcome.levelUps.isNotEmpty()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(Color.White, 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 0.8.u),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.u),
+                        ) {
+                            outcome.levelUps.take(4).forEachIndexed { i, (id, lv) ->
+                                val grow = remember { Animatable(levelScale(lv - 1)) }
+                                LaunchedEffect(Unit) {
+                                    kotlinx.coroutines.delay(2600L + i * 400L)
+                                    grow.animateTo(levelScale(lv) * 1.25f, tween(250))
+                                    grow.animateTo(levelScale(lv), spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessMediumLow))
+                                }
+                                androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Box(Modifier.size(7.u), contentAlignment = Alignment.Center) {
+                                        MonsterImage(Monsters[id], Modifier.fillMaxSize().scale(grow.value))
+                                    }
+                                    LevelStars(lv, star = 1.5.u)
+                                }
+                            }
+                        }
+                    }
+                    // Schatzkarte: ein Feld weiter
+                    MapStrip(
+                        outcome.mapBefore,
+                        Modifier.fillMaxWidth().padding(bottom = 0.8.u).comic(Color(0xFFBFE8FF), 2.4.u, 0.5.u, 0.8.u).padding(horizontal = 1.8.u, vertical = 0.8.u),
+                    )
                     if (unlocked.isNotEmpty()) {
                         // Neu freigeschaltet: Bilder der neuen Sachen für Super Bürsti
                         Row(
@@ -167,9 +228,15 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
     }
     // Freigeschalteter Feier-Effekt über allem (fängt keine Berührungen ab)
     CelebrationOverlay(child.effectNow)
+    when (scenes.getOrNull(scene)) {
+        "ei" -> EggOverlay(outcome.egg, outcome.eggStars, say, sfx) { scene++ }
+        "kiste" -> ChestOverlay(outcome.chest?.let { ChestGear.getOrNull(it) }, outcome.chestStars, say, sfx) { scene++ }
+    }
     }
 }
 
+/** Karten für Schlüpflinge aus dem Überraschungsei: zartes Pastell. */
+private val EggCard = Color(0xFFDDF5FF)
 /** Karten für seltene Monster: Gold, gesperrt ein blasses Gold. */
 private val RareGold = Color(0xFFFFE27A)
 /** Gesperrte seltene Kachel: blass, damit sie nicht wie schon gefunden aussieht; die Krone als Umriss verrät das Besondere. */
@@ -247,6 +314,26 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
                 }
             }
         }
+        Spacer(Modifier.height(1.u))
+        // Riesen-Bosse, die beim Putzen besiegt wurden
+        Row(
+            Modifier.fillMaxWidth().comic(Color(0xFFFFE9F1), 2.4.u, 0.5.u).padding(horizontal = 2.u, vertical = 0.6.u),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Giants.forEach { g ->
+                val wins = child.giantWins.count { it == g.id }
+                Row(
+                    Modifier.clickable(remember { MutableInteractionSource() }, null) {
+                        say(if (wins > 0) "${g.name}! Den hast du schon ${if (wins == 1) "einmal" else "$wins mal"} besiegt." else "Diesen Riesen-Boss hast du noch nicht besiegt. Vielleicht taucht er beim nächsten Putzen auf!")
+                    },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    GiantImage(g.id, Modifier.width(8.u), tint = if (wins > 0) null else M.Ink.copy(alpha = 0.25f), still = true)
+                    if (wins > 1) BasicText("×$wins", style = lilita(2.4))
+                }
+            }
+        }
         Spacer(Modifier.height(0.8.u))
         LazyVerticalGrid(
             GridCells.Fixed(5),
@@ -258,6 +345,7 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
             items(Monsters, key = { it.id }) { m ->
                 val owned = m.id in child.stickers
                 val fresh = m.id == highlight
+                val lv = if (owned) child.level(m.id) else 1
                 Box(
                     Modifier.clickable(remember { MutableInteractionSource() }, null) {
                         shown = m
@@ -273,6 +361,7 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
                                 when {
                                     fresh -> M.Yellow
                                     m.rare -> if (owned) RareGold else RareLocked
+                                    m.egg -> if (owned) EggCard else RareLocked
                                     owned -> Color.White
                                     else -> M.LockPink
                                 },
@@ -282,13 +371,15 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        MonsterImage(m, Modifier.fillMaxWidth(0.68f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
+                        // Je öfter es verjagt wurde, desto größer ist es
+                        MonsterImage(m, Modifier.fillMaxWidth(0.68f).scale(levelScale(lv)), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
                         // Platz für zwei Zeilen, damit lange Namen ganz zu lesen sind
                         Box(Modifier.fillMaxWidth().height(6.u), contentAlignment = Alignment.Center) {
                             if (owned) BasicText(m.name, style = lilita(2.4, align = TextAlign.Center), maxLines = 2)
                             else IconArt(Icon.LOCK, Modifier.size(3.u), color = M.Ink.copy(alpha = 0.3f))
                         }
                     }
+                    LevelStars(lv, Modifier.align(Alignment.TopStart).padding(1.u), star = 1.6.u)
                     if (fresh) {
                         BasicText(
                             "NEU!",
@@ -300,13 +391,13 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
             }
         }
     }
-    shown?.let { m -> MonsterCard(m, owned = m.id in child.stickers, onClose = { shown = null }) }
+    shown?.let { m -> MonsterCard(m, owned = m.id in child.stickers, level = child.level(m.id), onClose = { shown = null }) }
     }
 }
 
 /** Großansicht eines Monsters aus dem Album; antippen schließt sie wieder. */
 @Composable
-private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClose: () -> Unit) {
+private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, level: Int = 1, onClose: () -> Unit) {
     val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "hüpfen")
     val bounce by t.animateFloat(
         0f, 1f,
@@ -321,7 +412,7 @@ private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClos
     ) {
         Column(
             Modifier.scale(pop.value).fillMaxHeight(0.86f).aspectRatio(0.8f)
-                .comic(if (!owned) (if (m.rare) RareLocked else M.LockPink) else if (m.rare) RareGold else Color.White, 4.u, 0.7.u, 1.2.u).padding(3.u),
+                .comic(if (!owned) (if (m.rare || m.egg) RareLocked else M.LockPink) else if (m.rare) RareGold else if (m.egg) EggCard else Color.White, 4.u, 0.7.u, 1.2.u).padding(3.u),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -330,6 +421,7 @@ private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClos
                 Modifier.fillMaxWidth(0.9f).offset(y = (-2 * bounce).u).scale(1f + 0.04f * bounce, 1f - 0.04f * bounce),
                 tint = if (owned) null else M.Ink.copy(alpha = 0.25f),
             )
+            if (owned) LevelStars(level, star = 4.u)
             Spacer(Modifier.height(2.u))
             if (owned) BasicText(m.name, style = lilita(5.4, align = TextAlign.Center), maxLines = 2)
             else IconArt(Icon.LOCK, Modifier.size(7.u), color = M.Ink.copy(alpha = 0.3f))

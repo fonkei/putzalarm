@@ -34,8 +34,8 @@ import kotlin.math.roundToInt
 /** Formen der Monster. Neue immer hinten anhängen: die Reihenfolge steckt in gespeicherten Alben. */
 enum class GermKind { BLOB, SPIKE, BEAN, CYCLOPS, CUBE, STAR, DROP, JELLY }
 
-/** Hautmuster (gestreift und getupft gibt es als Album-Bild ohne Zappel-Bild). */
-enum class Pattern { PLAIN, STRIPES, DOTS }
+/** Hautmuster (gestreift und getupft gibt es als Album-Bild ohne Zappel-Bild). EGG = Schlüpfling in der Eierschale. Nur hinten anhängen. */
+enum class Pattern { PLAIN, STRIPES, DOTS, EGG }
 
 fun shade(c: Color, amount: Float): Color =
     if (amount < 0) lerp(c, Color.Black, -amount) else lerp(c, Color.White, amount)
@@ -214,6 +214,47 @@ fun BossImage(boss: de.putzalarm.app.data.Boss, modifier: Modifier = Modifier, b
                 )
             }
         }
+    }
+}
+
+/**
+ * Zeichnet Riesen-Boss [id] (fertiges 3D-Bild) mit Mitte [center] und Breite [sizePx]. [hit] (0 bis 1) lässt ihn rot aufblitzen,
+ * [tint] färbt ihn einfarbig (noch nie besiegt im Album).
+ */
+fun DrawScope.drawGiant(
+    id: Int, center: Offset, sizePx: Float, frame: Int = 0, rotation: Float = 0f,
+    hit: Float = 0f, tint: Color? = null, alpha: Float = 1f, squash: Float = 1f,
+) {
+    if (sizePx < 1f) return
+    val img = Sprites.giant(id, frame)
+    val px = sizePx.roundToInt()
+    withTransform({
+        translate(center.x, center.y)
+        rotate(rotation, Offset.Zero)
+        scale(1f / squash, squash, Offset(0f, px / 2f))
+    }) {
+        val dst = IntOffset(-px / 2, -px / 2)
+        val sz = IntSize(px, px)
+        drawImage(img, dstOffset = dst, dstSize = sz, alpha = alpha, filterQuality = FilterQuality.Medium,
+            colorFilter = tint?.let { ColorFilter.tint(it, BlendMode.SrcIn) })
+        if (hit > 0.02f && tint == null) drawImage(
+            img, dstOffset = dst, dstSize = sz, alpha = alpha * hit * 0.6f, filterQuality = FilterQuality.Medium,
+            colorFilter = ColorFilter.tint(Color(0xFFFF2A2A), BlendMode.SrcIn),
+        )
+    }
+}
+
+/** Ein Riesen-Boss als Bild, der langsam wackelt und mit den Ärmchen fuchtelt (für Album und Ergebnis). */
+@Composable
+fun GiantImage(id: Int, modifier: Modifier = Modifier, tint: Color? = null, still: Boolean = false) {
+    val t = rememberInfiniteTransition(label = "riese")
+    val time by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
+    Canvas(modifier.aspectRatio(1f)) {
+        val moving = !still && tint == null
+        drawGiant(
+            id, center, size.minDimension, frame = if (moving && time > 0.5f) 1 else 0,
+            rotation = if (moving) sin(time * 2 * PI.toFloat()) * 4f else 0f, tint = tint,
+        )
     }
 }
 

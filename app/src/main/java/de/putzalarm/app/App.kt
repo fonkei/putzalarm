@@ -35,6 +35,12 @@ import de.putzalarm.app.data.CostumeReward
 import de.putzalarm.app.data.CapeReward
 import de.putzalarm.app.data.BackdropReward
 import de.putzalarm.app.data.EffectReward
+import de.putzalarm.app.data.GearReward
+import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.Giants
+import de.putzalarm.app.data.SessionOutcome
+import de.putzalarm.app.data.wearing
+import de.putzalarm.app.ui.screens.TreasureMapScreen
 import de.putzalarm.app.ui.art.Costume
 import de.putzalarm.app.ui.art.LocalOutfit
 import de.putzalarm.app.ui.art.Outfit
@@ -48,8 +54,10 @@ sealed interface Screen {
     data class Gate(val then: Screen) : Screen
     data class Edit(val childId: String?) : Screen
     data class Home(val childId: String) : Screen
-    data class Brush(val childId: String, val camera: Boolean) : Screen
-    data class Result(val childId: String, val result: SessionResult, val sticker: Int?) : Screen
+    /** [giant]: Riesen-Boss, der in dieser Runde auftaucht (Id), oder null. */
+    data class Brush(val childId: String, val camera: Boolean, val giant: Int? = null) : Screen
+    data class Result(val childId: String, val result: SessionResult, val outcome: SessionOutcome) : Screen
+    data class TreasureMap(val childId: String) : Screen
     data class Album(val childId: String, val highlight: Int? = null, val back: Screen? = null) : Screen
     data class Wardrobe(val childId: String) : Screen
 }
@@ -62,6 +70,7 @@ private val Screen.childId: String?
         is Screen.Result -> childId
         is Screen.Album -> childId
         is Screen.Wardrobe -> childId
+        is Screen.TreasureMap -> childId
         is Screen.Edit -> childId
         else -> null
     }
@@ -74,14 +83,17 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
     // Neue oder alte Stimmen (Elternbereich)
     SideEffect { voice.useRecordings = store.newVoices; sfx.useRecordings = store.newVoices }
 
+    // Ob ein Riesen-Boss kommt, wird beim Start gewürfelt
+    fun giantFor(childId: String) = store.get(childId)?.rollGiant()?.id
+
     val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        pendingBrush?.let { screen = Screen.Brush(it, granted) }
+        pendingBrush?.let { screen = Screen.Brush(it, granted, giantFor(it)) }
         pendingBrush = null
     }
 
     fun startBrushing(childId: String) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            screen = Screen.Brush(childId, true)
+            screen = Screen.Brush(childId, true, giantFor(childId))
         } else {
             pendingBrush = childId
             cameraPermission.launch(Manifest.permission.CAMERA)
@@ -89,8 +101,10 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
     }
 
     // Bilder für das Kostüm des aktuellen Kindes im Hintergrund vorladen
-    val costume = screen.childId?.let { store.get(it) }?.outfit?.costume ?: Costume.GOLD
-    LaunchedEffect(costume) { withContext(Dispatchers.Default) { Sprites.preload(costume) } }
+    val look = screen.childId?.let { store.get(it) }?.outfit
+    val costume = look?.costume ?: Costume.GOLD
+    val gear = look?.gear.orEmpty()
+    LaunchedEffect(costume, gear) { withContext(Dispatchers.Default) { Sprites.preload(costume, gear) } }
 
     AnimatedContent(screen, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "screen") { s ->
         val outfit = s.childId?.let { store.get(it) }?.outfit ?: Outfit()
@@ -128,6 +142,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     onStart = { startBrushing(c.id) },
                     onAlbum = { screen = Screen.Album(c.id, back = s) },
                     onWardrobe = { screen = Screen.Wardrobe(c.id) },
+                    onMap = { screen = Screen.TreasureMap(c.id) },
                     onSwitch = { screen = Screen.Picker() },
                     // Darth Bürsti spricht mit tiefer Stimme (eigene Aufnahmen, sonst tiefe Gerätestimme)
                     greet = { text -> if (c.outfit.costume == Costume.DARTH) voice.say(text, 0.62f, "darth") else voice.say(text) },
@@ -142,9 +157,10 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                     music = store.music,
                     voice = voice,
                     sfx = sfx,
+                    giant = s.giant?.let { Giants.getOrNull(it) },
                     onFinished = { r ->
-                        val sticker = store.recordSession(c.id, r.monsters, r.stars)
-                        // Ein neues Kostüm oder ein neuer Umhang wird gleich angezogen
+                        val outcome = store.recordSession(c.id, r.monsters, r.stars, r.chased, r.giant, r.giantBeaten) ?: SessionOutcome()
+                        // Ein neues Kostüm, ein neuer Umhang oder ein neuer Hut wird gleich angezogen
                         store.get(c.id)?.let { now ->
                             var dressed = now
                             for (rw in newRewards(c.stars, now.stars)) when (rw) {
@@ -152,11 +168,13 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                                 is CapeReward -> dressed = dressed.copy(cape = rw.cape)
                                 is BackdropReward -> dressed = dressed.copy(backdrop = rw.backdrop.ordinal)
                                 is EffectReward -> dressed = dressed.copy(effect = rw.effect.ordinal)
+                                is GearReward -> dressed = dressed.wearing(rw.gear)
                                 else -> Unit
                             }
+                            outcome.chest?.let { ChestGear.getOrNull(it) }?.let { dressed = dressed.wearing(it) }
                             if (dressed != now) store.upsert(dressed)
                         }
-                        screen = Screen.Result(c.id, r, sticker)
+                        screen = Screen.Result(c.id, r, outcome)
                     },
                     onQuit = { screen = Screen.Home(c.id) },
                 )
@@ -165,14 +183,18 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                 ResultScreen(
                     child = c,
                     result = s.result,
-                    newSticker = s.sticker,
+                    outcome = s.outcome,
                     onHome = { screen = Screen.Home(c.id) },
-                    onAlbum = { screen = Screen.Album(c.id, s.sticker, back = Screen.Home(c.id)) },
+                    onAlbum = { screen = Screen.Album(c.id, s.outcome.egg ?: s.outcome.sticker, back = Screen.Home(c.id)) },
                     say = voice::say,
+                    sfx = sfx,
                 )
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Album -> store.get(s.childId)?.let { c ->
                 AlbumScreen(c, s.highlight, onBack = { screen = s.back ?: Screen.Home(c.id) }, say = voice::say)
+            } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
+            is Screen.TreasureMap -> store.get(s.childId)?.let { c ->
+                TreasureMapScreen(c, onBack = { screen = Screen.Home(c.id) }, say = voice::say)
             } ?: LaunchedEffect(Unit) { screen = Screen.Picker() }
             is Screen.Wardrobe -> store.get(s.childId)?.let { c ->
                 WardrobeScreen(

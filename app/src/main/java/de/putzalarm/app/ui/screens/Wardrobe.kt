@@ -61,6 +61,12 @@ import de.putzalarm.app.data.moveStars
 import de.putzalarm.app.data.nextReward
 import de.putzalarm.app.data.outfit
 import de.putzalarm.app.ui.art.Costume
+import de.putzalarm.app.ui.art.Gear
+import de.putzalarm.app.ui.art.GearSlot
+import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.gearStars
+import de.putzalarm.app.data.hasGear
+import de.putzalarm.app.data.wearing
 import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
@@ -113,6 +119,36 @@ fun WardrobeScreen(child: Child, onPick: (Child) -> Unit, onBack: () -> Unit, sa
                     ) { CapeSwatch(col, Modifier.fillMaxSize().padding(0.8.u)) }
                 }
             }
+            // Hüte und Helme, dann Brillen; das erste Feld zieht alles aus. Kisten-Teile gibt es nur auf der Schatzkarte.
+            for (slot in GearSlot.entries) {
+                val worn = if (slot == GearSlot.HAT) child.hat else child.glasses
+                LazyRow(
+                    Modifier.fillMaxWidth().height(15.u).comic(Color.White, 2.4.u, 0.45.u).padding(1.2.u),
+                    horizontalArrangement = Arrangement.spacedBy(1.2.u),
+                ) {
+                    item {
+                        Tile(
+                            Modifier.fillMaxHeight().aspectRatio(0.75f), 0, child.stars, selected = outfit.gear.none { it.slot == slot },
+                            onClick = { onPick(if (slot == GearSlot.HAT) child.copy(hat = "") else child.copy(glasses = "")) },
+                        ) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { IconArt(Icon.CLOSE, Modifier.fillMaxWidth(0.4f)) } }
+                    }
+                    items(Gear.entries.filter { it.slot == slot }.sortedBy { if (it in ChestGear) 10_000 + ChestGear.indexOf(it) else gearStars(it) }) { g ->
+                        val chestIdx = ChestGear.indexOf(g)
+                        val have = child.hasGear(g)
+                        Tile(
+                            Modifier.fillMaxHeight().aspectRatio(0.75f), if (chestIdx >= 0) -1 else gearStars(g), child.stars, selected = worn == g.key && have,
+                            open = have,
+                            onClick = {
+                                when {
+                                    have -> onPick(child.wearing(g))
+                                    chestIdx >= 0 -> say("Das ist in einer Schatzkiste versteckt. Putz fleißig, dann findest du sie auf der Schatzkarte!")
+                                    else -> locked(gearStars(g))
+                                }
+                            },
+                        ) { GearPreview(g, Modifier.fillMaxSize()) }
+                    }
+                }
+            }
             Shelf {
                 Backdrop.entries.forEach { b ->
                     val need = backdropStars(b)
@@ -161,8 +197,12 @@ private fun Shelf(content: @Composable androidx.compose.foundation.layout.RowSco
 
 /** Eine Kachel im Schrank; gesperrt mit Schloss und Sternenzahl, gewählt mit dickem blauem Rand. */
 @Composable
-private fun Tile(modifier: Modifier, need: Int, have: Int, selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
-    val open = have >= need
+private fun Tile(
+    modifier: Modifier, need: Int, have: Int, selected: Boolean, onClick: () -> Unit,
+    /** Ob frei; sonst nach Sternen. [need] < 0 = steckt in einer Schatzkiste (Kiste statt Sternenzahl). */
+    open: Boolean = have >= need,
+    content: @Composable () -> Unit,
+) {
     Box(
         modifier
             .comic(if (open) M.Cream else Color(0xFFDDD3EE), 1.6.u, if (selected) 0.7.u else 0.35.u, borderColor = if (selected) M.Blue else M.Ink)
@@ -174,7 +214,8 @@ private fun Tile(modifier: Modifier, need: Int, have: Int, selected: Boolean, on
         if (!open) {
             Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.55f)))
             IconArt(Icon.LOCK, Modifier.fillMaxWidth(0.4f).align(Alignment.Center), color = M.Ink)
-            Row(
+            if (need < 0) ChestIcon(Modifier.align(Alignment.BottomCenter).width(4.u))
+            else Row(
                 Modifier.align(Alignment.BottomCenter).comic(M.Yellow, 1.u, 0.3.u).padding(horizontal = 0.6.u, vertical = 0.2.u),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(0.3.u),
@@ -247,6 +288,7 @@ fun RewardImage(r: Reward, modifier: Modifier = Modifier) {
         is BackdropReward -> BackdropPreview(r.backdrop, modifier.aspectRatio(1.2f).clip(RoundedCornerShape(1.u)))
         is EffectReward -> EffectPreview(r.effect, modifier.aspectRatio(1.2f).clip(RoundedCornerShape(1.u)))
         is JokesReward -> JokeBubble(modifier)
+        is de.putzalarm.app.data.GearReward -> GearPreview(r.gear, modifier.aspectRatio(0.75f))
     }
 }
 

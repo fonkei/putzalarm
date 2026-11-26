@@ -67,6 +67,9 @@ import de.putzalarm.app.ui.art.JawHud
 import de.putzalarm.app.ui.art.HeroPose
 import de.putzalarm.app.ui.art.Mascot
 import de.putzalarm.app.ui.art.drawGerm
+import de.putzalarm.app.ui.art.drawCrown
+import de.putzalarm.app.ui.art.drawGiant
+import de.putzalarm.app.ui.art.drawStar
 import de.putzalarm.app.ui.art.drawToothbrush
 import de.putzalarm.app.ui.theme.ComicButton
 import de.putzalarm.app.ui.theme.Lilita
@@ -93,6 +96,7 @@ fun BrushScreen(
     music: Boolean,
     voice: Voice,
     sfx: Sfx,
+    giant: de.putzalarm.app.data.Giant? = null,
     onFinished: (SessionResult) -> Unit,
     onQuit: () -> Unit,
 ) {
@@ -118,7 +122,18 @@ fun BrushScreen(
                 sfx.fanfare()
                 voice.say("Fertig! Super geputzt, ${child.name}!")
             }
-        })
+            override fun onGiantArrive(giant: de.putzalarm.app.data.Giant) {
+                sfx.combo()
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                voice.say("Achtung! Ein Riesen-Boss! Das ist ${giant.name}! Schrubb ganz kräftig, dann besiegst du ihn!")
+            }
+            override fun onGiantHit() = sfx.plopp()
+            override fun onGiantBeaten(giant: de.putzalarm.app.data.Giant) {
+                sfx.fanfare()
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                voice.say("Boss besiegt! ${giant.name} ist weg! Du bist der Größte!")
+            }
+        }, album = child.stickers.mapNotNull { de.putzalarm.app.data.Monsters.getOrNull(it) }, giant = giant)
     }
     var paused by remember { mutableStateOf(false) }
     // Lustige Putzmusik, leise unter Ansagen und Monster-Rufen; läuft nur, solange geputzt wird
@@ -253,8 +268,13 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
             val grow = if (pop < 1f) pop * 1.15f else 1f + 0.15f * (1f - ((g.age - 0.25f) / 0.2f).coerceIn(0f, 1f))
             drawGerm(
                 Offset(g.x, g.y), g.size * g.z * grow, g.color, g.kind, g.seed, g.rot,
-                wiggle = sin(g.age * 18f), look = sin(g.age * 7f),
+                wiggle = sin(g.age * 18f), look = sin(g.age * 7f), pattern = g.pattern,
             )
+            // Alte Bekannte aus dem Album: seltene tragen ihre Krone auch beim Wegfliegen
+            if (g.album?.rare == true) {
+                val sz = g.size * g.z * grow
+                drawCrown(Offset(g.x, g.y - sz * 0.62f), sz * 0.42f)
+            }
             if (g.scream != null && g.age in 0.05f..1.1f) {
                 val layout = measurer.measure(g.scream, bubbleStyle)
                 val pw = layout.size.width + 1.8f * u
@@ -265,6 +285,7 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
                 drawText(layout, topLeft = tl + Offset(0.9f * u, 0.5f * u))
             }
         }
+        drawGiantLayer(game, u, size.height)
         // Hinweis, wenn das Kind aufhört zu schrubben: eine wackelnde Bürste neben dem Mund
         if (game.idle && game.phase == Phase.RUN) {
             val wob = sin(game.time * 14f) * 1.2f * u
@@ -289,6 +310,64 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
         val bw = 1.6f * u
         drawRoundRect(M.Yellow, Offset(bw / 2, bw / 2), Size(size.width - bw, size.height - bw), CornerRadius(2f * u), style = Stroke(bw))
         drawRoundRect(M.Ink, Offset(bw, bw), Size(size.width - 2 * bw, size.height - 2 * bw), CornerRadius(1.2f * u), style = Stroke(0.5f * u))
+    }
+}
+
+/** Der Riesen-Boss: fliegt ein, wackelt, blitzt bei Treffern rot, hat einen Lebensbalken und zerplatzt in Sterne. */
+private fun DrawScope.drawGiantLayer(game: BrushGame, u: Float, h: Float) {
+    val g = game.giant ?: return
+    val phase = game.giantPhase
+    if (phase == GiantPhase.WAITING) return
+    val t = game.giantT
+    val base = game.giantPos
+    val size = h * 0.44f
+    // Sterne vom Mund zum Boss (in einem Bogen)
+    for (s in game.shots) {
+        val k = s.t
+        val p = Offset(s.from.x + (base.x - s.from.x) * k, s.from.y + (base.y - s.from.y) * k - sin(k * 3.1416f) * 8f * u)
+        drawStar(p, (2.6f + 1.4f * k) * u)
+    }
+    when (phase) {
+        GiantPhase.ARRIVING -> {
+            // Kommt von oben herab und landet mit einem Hopser
+            val k = (t / 1.2f).coerceIn(0f, 1f)
+            val ease = 1f - (1f - k) * (1f - k) * (1f - k)
+            val y = base.y - (1f - ease) * h * 0.7f
+            val squash = if (t in 1.2f..1.6f) 1f - 0.18f * sin((t - 1.2f) / 0.4f * 3.1416f) else 1f
+            drawGiant(g.id, Offset(base.x, y), size, frame = ((game.time * 4).toInt() and 1), squash = squash)
+        }
+        GiantPhase.FIGHT -> {
+            val shake = game.giantHit * sin(game.time * 60f) * 1.2f * u
+            val bob = sin(game.time * 2.4f) * 1.2f * u
+            drawGiant(
+                g.id, Offset(base.x + shake, base.y + bob), size, frame = ((game.time * 3).toInt() and 1),
+                rotation = sin(game.time * 1.7f) * 5f, hit = game.giantHit,
+            )
+            // Lebensbalken über dem Boss
+            val bw = size * 0.7f
+            val bh = 2.2f * u
+            val tl = Offset(base.x - bw / 2, base.y - size * 0.55f)
+            val left = (game.giantHp / game.giantHpMax).coerceIn(0f, 1f)
+            drawRoundRect(Color(0xFFE9DCFF), tl, Size(bw, bh), CornerRadius(bh / 2))
+            drawRoundRect(if (left > 0.3f) Color(0xFFFF3B30) else Color(0xFFFFB627), tl, Size(bw * left.coerceAtLeast(0.05f), bh), CornerRadius(bh / 2))
+            drawRoundRect(M.Ink, tl, Size(bw, bh), CornerRadius(bh / 2), style = Stroke(0.45f * u))
+        }
+        GiantPhase.BEATEN -> {
+            // Dreht sich, schrumpft und zerplatzt in einen Sternenregen
+            val k = (t / 0.9f).coerceIn(0f, 1f)
+            if (k < 1f) drawGiant(g.id, base, size * (1f - k), rotation = k * 540f, hit = 1f - k)
+            val burst = (t / 1.6f).coerceIn(0f, 1f)
+            if (burst < 1f) for (i in 0 until 14) {
+                val a = i / 14f * 6.283f
+                val r = size * (0.15f + 0.75f * burst)
+                drawStar(Offset(base.x + kotlin.math.cos(a) * r, base.y + sin(a) * r), (3.6f - 1.5f * burst) * u, alpha = 1f - burst)
+            }
+        }
+        GiantPhase.ESCAPED -> {
+            // Haut nach oben ab
+            if (t < 1.4f) drawGiant(g.id, Offset(base.x, base.y - t * t * h * 0.6f), size, frame = ((game.time * 6).toInt() and 1), rotation = sin(game.time * 9f) * 8f)
+        }
+        GiantPhase.WAITING -> Unit
     }
 }
 
@@ -338,7 +417,11 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
         if (game.phase != Phase.COUNTDOWN) {
             Mascot(
                 Modifier.align(Alignment.BottomEnd).fillMaxHeight(0.36f).offset(x = 3.u, y = 2.u),
-                pose = if (cheer || game.phase == Phase.DONE) HeroPose.JUBEL else HeroPose.BRUSH,
+                pose = when {
+                    cheer || game.phase == Phase.DONE || game.giantPhase == GiantPhase.BEATEN -> HeroPose.JUBEL
+                    game.giantPhase == GiantPhase.FIGHT -> HeroPose.BOX
+                    else -> HeroPose.BRUSH
+                },
             )
         }
         if (game.phase == Phase.RUN) {
