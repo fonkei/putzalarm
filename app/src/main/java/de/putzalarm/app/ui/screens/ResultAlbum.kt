@@ -93,12 +93,14 @@ fun ResultScreen(
         val reward = unlocked.lastOrNull()?.let { " Und neu für Super Bürsti: ${it.spoken}!" } ?: ""
         val after = child.bossDamageNow
         val before = (after - earned).coerceAtLeast(0)
-        val boss = if (after / BossHp > before / BossHp) " Und du hast den Boss ${bossOfWeek(before / BossHp).name} besiegt! Wahnsinn! Jetzt kommt ${child.currentBoss.name}." else ""
+        // Besiegte Bosse sagt Bürsti gleich zuerst an, damit es nicht in der langen Ansage untergeht
+        val boss = if (after / BossHp > before / BossHp) "Boss besiegt! Du hast ${bossOfWeek(before / BossHp).name} geschafft! Wahnsinn! " else ""
         val giant = result.giant?.let { Giants.getOrNull(it) }?.let { g ->
-            if (result.giantBeaten) " Den Riesen-Boss ${g.name} hast du auch besiegt!" else " ${g.name} ist entkommen. Nächstes Mal schaffst du ihn!"
+            if (result.giantBeaten) "" else " ${g.name} ist entkommen. Nächstes Mal schaffst du ihn!"
         } ?: ""
         val grown = outcome.levelUps.firstOrNull()?.let { (id, lv) -> " ${Monsters[id].name} ist gewachsen!" } ?: ""
-        say((if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + giant + boss + sticker + grown + reward)
+        val giantWon = result.giant?.let { Giants.getOrNull(it) }?.takeIf { result.giantBeaten }?.let { "Riesen-Boss besiegt! ${it.name} ist weg! " } ?: ""
+        say(boss + giantWon + (if (clean == 4) "Super geputzt! Du hast ${result.monsters} Monster verjagt!" else "Gut gemacht! ${result.monsters} Monster verjagt.") + starLine + giant + sticker + grown + reward)
     }
     BackHandler(onBack = { if (ready) onHome() else scene++ })
     Box(Modifier.fillMaxSize()) {
