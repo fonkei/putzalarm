@@ -133,7 +133,7 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(2.6.u))
             val week = child.week
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(0.6.u)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.u)) {
                 val slots = child.weekSlots
                 val today = LocalDate.now().dayOfWeek.value - 1
                 listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEachIndexed { i, d ->
@@ -143,10 +143,9 @@ fun HomeScreen(
                             Modifier.fillMaxWidth().aspectRatio(1f).comic(if (on) M.Blue else Color.White, 10.u, if (i == today) 0.7.u else 0.45.u),
                             contentAlignment = Alignment.Center,
                         ) { BasicText(d, style = lilita(2, if (on) Color.White else M.Ink)) }
-                        // Darunter klein: Sonnenaufgang = morgens, Sonne = tagsüber, Mond = abends geputzt
-                        Row(horizontalArrangement = Arrangement.spacedBy(0.1.u)) {
-                            SlotMark(Icon.SUNRISE, slots[i].morning, M.Cream)
-                            SlotMark(Icon.SUN, slots[i].day, M.Yellow)
+                        // Darunter: Sonne = morgens geputzt, Mond = abends geputzt; nicht geputzt ganz blass
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
+                            SlotMark(Icon.SUN, slots[i].morning, Color(0xFF8FD3FF)) // Taghimmel, damit die Sonne gut leuchtet
                             SlotMark(Icon.MOON, slots[i].evening, M.Blue)
                         }
                     }
@@ -284,8 +283,8 @@ private object Greetings {
 @Composable
 private fun SlotMark(icon: Icon, done: Boolean, color: Color) {
     Box(
-        Modifier.size(1.9.u).alpha(if (done) 1f else 0.22f)
+        Modifier.size(2.6.u).alpha(if (done) 1f else 0.22f)
             .background(if (done) color else Color.Transparent, CircleShape)
-            .border(0.2.u, M.Ink, CircleShape).padding(0.25.u),
+            .border(0.25.u, M.Ink, CircleShape).padding(0.4.u),
     ) { IconArt(icon, Modifier.fillMaxSize(), color = M.Ink) }
 }

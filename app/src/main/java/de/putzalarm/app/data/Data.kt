@@ -249,10 +249,7 @@ data class Child(
             return (0L until 7L).map { monday.plusDays(it) in d }
         }
 
-    /**
-     * Für Mo bis So der laufenden Woche: in welchen Tageszeiten wurde geputzt?
-     * Morgens = vor 11 Uhr, tagsüber = 11 bis 17 Uhr, abends = ab 17 Uhr (Sonnenaufgang, Sonne, Mond auf dem Start).
-     */
+    /** Für Mo bis So der laufenden Woche: morgens (vor 15 Uhr) und abends geputzt? (Sonne und Mond auf dem Start) */
     val weekSlots: List<DaySlots>
         get() {
             val monday = LocalDate.now().with(DayOfWeek.MONDAY)
@@ -260,7 +257,7 @@ data class Child(
             return (0L until 7L).map { i ->
                 val day = monday.plusDays(i)
                 val hours = times.filter { it.toLocalDate() == day }.map { it.hour }
-                DaySlots(hours.any { it < 11 }, hours.any { it in 11..16 }, hours.any { it >= 17 })
+                DaySlots(hours.any { it < 15 }, hours.any { it >= 15 })
             }
         }
 
@@ -274,8 +271,8 @@ enum class Sensitivity(val label: String, val on: Float, val off: Float) {
     EASY("Locker", 0.12f, 0.05f), NORMAL("Normal", 0.2f, 0.09f), STRICT("Streng", 0.32f, 0.15f)
 }
 
-/** Ob an einem Tag morgens, tagsüber und abends geputzt wurde. */
-data class DaySlots(val morning: Boolean, val day: Boolean, val evening: Boolean)
+/** Ob an einem Tag morgens (vor 15 Uhr) und abends geputzt wurde. */
+data class DaySlots(val morning: Boolean, val evening: Boolean)
 
 class ProfileStore(context: Context) {
     private val prefs = context.getSharedPreferences("einstellungen", Context.MODE_PRIVATE)
