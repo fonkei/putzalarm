@@ -168,11 +168,12 @@ fun ResultScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(1.6.u),
                         ) {
-                            GiantImage(id, Modifier.size(8.u), tint = if (result.giantBeaten) null else M.Ink.copy(alpha = 0.2f))
-                            if (result.giantBeaten) {
-                                IconArt(Icon.CHECK, Modifier.size(4.u))
-                                repeat(GiantStars) { Star(true, Modifier.width(3.4.u)) }
-                            } else IconArt(Icon.CLOSE, Modifier.size(3.6.u), color = M.Ink.copy(alpha = 0.5f))
+                            // Immer das echte, farbige Monster, mit einem dicken roten Kreuz darüber
+                            Box(Modifier.size(9.u), contentAlignment = Alignment.Center) {
+                                GiantImage(id, Modifier.fillMaxSize())
+                                IconArt(Icon.CLOSE, Modifier.fillMaxSize(0.8f), color = Color(0xFFFF3B30))
+                            }
+                            if (result.giantBeaten) repeat(GiantStars) { Star(true, Modifier.width(3.4.u)) }
                         }
                     }
                     // Monster, die durch erneutes Verjagen gewachsen sind
