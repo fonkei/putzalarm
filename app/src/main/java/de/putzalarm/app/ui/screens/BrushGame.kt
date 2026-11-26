@@ -243,7 +243,7 @@ class BrushGame(val duration: Int, private val events: GameEvents) {
             "Tschüss, Zahn!" to "Tschüss, Zahn!",
             "Mein schönes Versteck!" to "Mein schönes Versteck!",
             "Zu sauber hier!" to "Zu sauber hier!",
-            "Ohh... Haland" to "Ohh... Haland",
+            "Oh! Haaland!" to "Oh! Haaland!",
             "Ihhhh Zahnpasta!\nDavon wird mir schlecht!\nNix wie weg hier!" to "Iiiiih, Zahnpasta! Davon wird mir schlecht! Nix wie weg hier!",
             "Wer hat das Licht angemacht?" to "Wer hat das Licht angemacht?",
             "Das ist nicht fair!" to "Das ist nicht fair!",
