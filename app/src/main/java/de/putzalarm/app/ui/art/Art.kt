@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -145,7 +146,7 @@ fun Star(on: Boolean, modifier: Modifier = Modifier) {
 }
 
 /** Einfache Comic-Symbole, damit Kinder ohne Lesen bedienen können. */
-enum class Icon { PLAY, PAUSE, CLOSE, HOME, CHECK, CAMERA, GALLERY, SUN, MOON, BACK, TRASH, PENCIL, LOCK, HANGER }
+enum class Icon { PLAY, PAUSE, CLOSE, HOME, CHECK, CAMERA, GALLERY, SUN, MOON, BACK, TRASH, PENCIL, LOCK, HANGER, SUNRISE }
 
 @Composable
 fun IconArt(icon: Icon, modifier: Modifier = Modifier, color: Color = M.Ink) {
@@ -200,6 +201,15 @@ fun DrawScope.drawIconArt(icon: Icon, color: Color) {
                     for (i in 0 until 8) {
                         rotate(i * 45f, Offset(20f, 20f)) { drawLine(sun, Offset(20f, 3f), Offset(20f, 8f), 3f, StrokeCap.Round) }
                     }
+                }
+                Icon.SUNRISE -> {
+                    // Halbe Sonne, die gerade über dem Horizont aufgeht
+                    val sun = Color(0xFFFF8A3D)
+                    clipRect(0f, 0f, 40f, 27f) { drawCircle(sun, 9f, Offset(20f, 27f)) }
+                    for (a in listOf(-70f, -35f, 0f, 35f, 70f)) {
+                        rotate(a, Offset(20f, 27f)) { drawLine(sun, Offset(20f, 9f), Offset(20f, 14f), 3f, StrokeCap.Round) }
+                    }
+                    drawLine(color, Offset(5f, 29f), Offset(35f, 29f), 3.5f, StrokeCap.Round)
                 }
                 Icon.MOON -> {
                     val full = Path().apply { addOval(androidx.compose.ui.geometry.Rect(6f, 6f, 34f, 34f)) }

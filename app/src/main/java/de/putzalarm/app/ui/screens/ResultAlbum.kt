@@ -172,7 +172,8 @@ fun ResultScreen(child: Child, result: SessionResult, newSticker: Int?, onHome: 
 
 /** Karten für seltene Monster: Gold, gesperrt ein blasses Gold. */
 private val RareGold = Color(0xFFFFE27A)
-private val RareLocked = Color(0xFFF3D98C)
+/** Gesperrte seltene Kachel: blass, damit sie nicht wie schon gefunden aussieht; die Krone als Umriss verrät das Besondere. */
+private val RareLocked = Color(0xFFEDE6D6)
 
 /** Der Boss der Woche bekommt die neuen Sterne ab: Er wackelt, und sein Lebensbalken schrumpft. */
 @Composable
@@ -284,7 +285,8 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
                         MonsterImage(m, Modifier.fillMaxWidth(0.68f), tint = if (owned) null else M.Ink.copy(alpha = 0.25f))
                         // Platz für zwei Zeilen, damit lange Namen ganz zu lesen sind
                         Box(Modifier.fillMaxWidth().height(6.u), contentAlignment = Alignment.Center) {
-                            BasicText(if (owned) m.name else "?", style = lilita(2.4, align = TextAlign.Center), maxLines = 2)
+                            if (owned) BasicText(m.name, style = lilita(2.4, align = TextAlign.Center), maxLines = 2)
+                            else IconArt(Icon.LOCK, Modifier.size(3.u), color = M.Ink.copy(alpha = 0.3f))
                         }
                     }
                     if (fresh) {
@@ -319,7 +321,7 @@ private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClos
     ) {
         Column(
             Modifier.scale(pop.value).fillMaxHeight(0.86f).aspectRatio(0.8f)
-                .comic(if (m.rare) RareGold else if (owned) Color.White else M.LockPink, 4.u, 0.7.u, 1.2.u).padding(3.u),
+                .comic(if (!owned) (if (m.rare) RareLocked else M.LockPink) else if (m.rare) RareGold else Color.White, 4.u, 0.7.u, 1.2.u).padding(3.u),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -329,7 +331,8 @@ private fun MonsterCard(m: de.putzalarm.app.data.Monster, owned: Boolean, onClos
                 tint = if (owned) null else M.Ink.copy(alpha = 0.25f),
             )
             Spacer(Modifier.height(2.u))
-            BasicText(if (owned) m.name else "?", style = lilita(5.4, align = TextAlign.Center), maxLines = 2)
+            if (owned) BasicText(m.name, style = lilita(5.4, align = TextAlign.Center), maxLines = 2)
+            else IconArt(Icon.LOCK, Modifier.size(7.u), color = M.Ink.copy(alpha = 0.3f))
         }
     }
 }

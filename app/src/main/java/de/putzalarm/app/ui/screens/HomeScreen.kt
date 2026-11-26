@@ -30,6 +30,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import de.putzalarm.app.data.Child
@@ -117,7 +118,7 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(2.6.u))
             val week = child.week
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.u)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(0.6.u)) {
                 val slots = child.weekSlots
                 val today = LocalDate.now().dayOfWeek.value - 1
                 listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEachIndexed { i, d ->
@@ -127,10 +128,11 @@ fun HomeScreen(
                             Modifier.fillMaxWidth().aspectRatio(1f).comic(if (on) M.Blue else Color.White, 10.u, if (i == today) 0.7.u else 0.45.u),
                             contentAlignment = Alignment.Center,
                         ) { BasicText(d, style = lilita(2, if (on) Color.White else M.Ink)) }
-                        // Darunter klein: Sonne = morgens geputzt, Mond = abends geputzt
-                        Row(horizontalArrangement = Arrangement.spacedBy(0.3.u)) {
-                            SlotMark(Icon.SUN, slots[i].first, M.Yellow)
-                            SlotMark(Icon.MOON, slots[i].second, M.Blue)
+                        // Darunter klein: Sonnenaufgang = morgens, Sonne = tagsüber, Mond = abends geputzt
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.1.u)) {
+                            SlotMark(Icon.SUNRISE, slots[i].morning, M.Cream)
+                            SlotMark(Icon.SUN, slots[i].day, M.Yellow)
+                            SlotMark(Icon.MOON, slots[i].evening, M.Blue)
                         }
                     }
                 }
@@ -263,11 +265,12 @@ private object Greetings {
 
 }
 
-/** Kleines Sonnen- oder Mondzeichen unter einem Wochentag: farbig, wenn zu der Zeit geputzt wurde. */
+/** Kleines Tageszeit-Zeichen unter einem Wochentag: farbig, wenn zu der Zeit geputzt wurde, sonst ganz blass. */
 @Composable
 private fun SlotMark(icon: Icon, done: Boolean, color: Color) {
     Box(
-        Modifier.size(2.6.u).background(if (done) color else Color.Transparent, CircleShape)
-            .border(0.25.u, if (done) M.Ink else M.Ink.copy(alpha = 0.25f), CircleShape).padding(0.45.u),
-    ) { IconArt(icon, Modifier.fillMaxSize(), color = if (done) M.Ink else M.Ink.copy(alpha = 0.25f)) }
+        Modifier.size(1.9.u).alpha(if (done) 1f else 0.22f)
+            .background(if (done) color else Color.Transparent, CircleShape)
+            .border(0.2.u, M.Ink, CircleShape).padding(0.25.u),
+    ) { IconArt(icon, Modifier.fillMaxSize(), color = M.Ink) }
 }
