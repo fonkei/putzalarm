@@ -92,7 +92,8 @@ fun ResultScreen(
         val starLine = if (earned == 1) " Ein Stern für dich!" else if (earned > 1) " $earned Sterne für dich!" else ""
         val reward = unlocked.lastOrNull()?.let { " Und neu für Super Bürsti: ${it.spoken}!" } ?: ""
         val after = child.bossDamageNow
-        val boss = if (after >= BossHp && after - earned < BossHp) " Und du hast den Boss ${bossOfWeek().name} besiegt! Wahnsinn!" else ""
+        val before = (after - earned).coerceAtLeast(0)
+        val boss = if (after / BossHp > before / BossHp) " Und du hast den Boss ${bossOfWeek(before / BossHp).name} besiegt! Wahnsinn! Jetzt kommt ${child.currentBoss.name}." else ""
         val giant = result.giant?.let { Giants.getOrNull(it) }?.let { g ->
             if (result.giantBeaten) " Den Riesen-Boss ${g.name} hast du auch besiegt!" else " ${g.name} ist entkommen. Nächstes Mal schaffst du ihn!"
         } ?: ""
@@ -168,11 +169,8 @@ fun ResultScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(1.6.u),
                         ) {
-                            // Immer das echte, farbige Monster, mit einem dicken roten Kreuz darüber
-                            Box(Modifier.size(9.u), contentAlignment = Alignment.Center) {
-                                GiantImage(id, Modifier.fillMaxSize())
-                                IconArt(Icon.CLOSE, Modifier.fillMaxSize(0.8f), color = Color(0xFFFF3B30))
-                            }
+                            // Das echte, farbige Monster; besiegt mit dickem rotem Kreuz darüber
+                            BossImage(Giants[id], Modifier.size(9.u), beaten = result.giantBeaten)
                             if (result.giantBeaten) repeat(GiantStars) { Star(true, Modifier.width(3.4.u)) }
                         }
                     }
@@ -243,19 +241,22 @@ private val RareGold = Color(0xFFFFE27A)
 /** Gesperrte seltene Kachel: blass, damit sie nicht wie schon gefunden aussieht; die Krone als Umriss verrät das Besondere. */
 private val RareLocked = Color(0xFFEDE6D6)
 
-/** Der Boss der Woche bekommt die neuen Sterne ab: Er wackelt, und sein Lebensbalken schrumpft. */
+/** Der Boss der Woche bekommt die neuen Sterne ab: Er wackelt, und sein Lebensbalken schrumpft. Besiegt bekommt er ein rotes Kreuz. */
 @Composable
 private fun BossHit(child: Child, stars: Int, modifier: Modifier) {
-    val boss = bossOfWeek()
     val after = child.bossDamageNow
     val before = (after - stars).coerceAtLeast(0)
-    val left = remember { Animatable(1f - before.toFloat() / BossHp) }
+    // Der Boss, der zu Beginn dieser Runde dran war
+    val k = before / BossHp
+    val boss = bossOfWeek(k)
+    val wins = after / BossHp > k
+    val left = remember { Animatable(1f - (before % BossHp).toFloat() / BossHp) }
     val hit = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(3400L)
-        if (before >= BossHp) return@LaunchedEffect
+        if (stars <= 0) return@LaunchedEffect
         hit.snapTo(1f)
-        left.animateTo((1f - after.toFloat() / BossHp).coerceAtLeast(0f), tween(1100))
+        left.animateTo(if (wins) 0f else 1f - (after % BossHp).toFloat() / BossHp, tween(1100))
         hit.animateTo(0f, tween(500))
     }
     val beaten = left.value <= 0f
@@ -265,6 +266,8 @@ private fun BossHit(child: Child, stars: Int, modifier: Modifier) {
             BossBar(left.value, Modifier.fillMaxWidth().height(2.6.u))
             if (beaten) Row(horizontalArrangement = Arrangement.spacedBy(0.6.u)) { repeat(3) { Star(true, Modifier.width(2.6.u)) } }
         }
+        // Gleich danach ist der nächste Boss dran
+        if (beaten) BossImage(child.currentBoss, Modifier.width(5.u))
     }
 }
 
@@ -301,36 +304,21 @@ fun AlbumScreen(child: Child, highlight: Int?, onBack: () -> Unit, say: (String)
             )
         }
         Spacer(Modifier.height(1.6.u))
-        // Besiegte Bosse (einer pro Woche); noch nie besiegte nur als Schatten
+        // Boss-Monster: besiegte (als Boss der Woche oder als Riesen-Boss) in Farbe mit rotem Kreuz, noch nie besiegte nur als Schatten
         Row(
-            Modifier.fillMaxWidth().comic(Color.White, 2.4.u, 0.5.u).padding(horizontal = 2.u, vertical = 1.u),
+            Modifier.fillMaxWidth().comic(Color.White, 2.4.u, 0.5.u).padding(horizontal = 2.u, vertical = 0.6.u),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Bosses.forEach { b ->
-                val wins = child.bossWins.count { it == b.id }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BossImage(b, Modifier.width(7.u), beaten = wins > 0, tint = if (wins > 0) null else M.Ink.copy(alpha = 0.25f))
-                    if (wins > 1) BasicText("×$wins", style = lilita(2.4))
-                }
-            }
-        }
-        Spacer(Modifier.height(1.u))
-        // Riesen-Bosse, die beim Putzen besiegt wurden
-        Row(
-            Modifier.fillMaxWidth().comic(Color(0xFFFFE9F1), 2.4.u, 0.5.u).padding(horizontal = 2.u, vertical = 0.6.u),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Giants.forEach { g ->
-                val wins = child.giantWins.count { it == g.id }
+                val wins = child.bossWinsOf(b.id)
                 Row(
                     Modifier.clickable(remember { MutableInteractionSource() }, null) {
-                        say(if (wins > 0) "${g.name}! Den hast du schon ${if (wins == 1) "einmal" else "$wins mal"} besiegt." else "Diesen Riesen-Boss hast du noch nicht besiegt. Vielleicht taucht er beim nächsten Putzen auf!")
+                        say(if (wins > 0) "${b.name}! Den hast du schon ${if (wins == 1) "einmal" else "$wins mal"} besiegt." else "Diesen Boss hast du noch nicht besiegt. Vielleicht kommt er bald!")
                     },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GiantImage(g.id, Modifier.width(8.u), tint = if (wins > 0) null else M.Ink.copy(alpha = 0.25f), still = true)
+                    BossImage(b, Modifier.width(8.u), beaten = wins > 0, tint = if (wins > 0) null else M.Ink.copy(alpha = 0.25f))
                     if (wins > 1) BasicText("×$wins", style = lilita(2.4))
                 }
             }

@@ -44,7 +44,6 @@ import de.putzalarm.app.data.outfit
 import de.putzalarm.app.ui.art.BossImage
 import de.putzalarm.app.ui.art.BossBar
 import de.putzalarm.app.data.bossOfWeek
-import de.putzalarm.app.data.BossHp
 import de.putzalarm.app.ui.art.Icon
 import de.putzalarm.app.ui.art.IconArt
 import de.putzalarm.app.ui.art.Mascot
@@ -79,17 +78,18 @@ fun HomeScreen(
                 ChildAvatar(child, photoDir, 6.u)
             }
             Spacer(Modifier.width(2.u))
-            // Boss der Woche mit Lebensbalken; antippen erklärt ihn
-            val boss = bossOfWeek()
-            val beaten = child.bossBeatenNow
+            // Boss der Woche mit Lebensbalken; antippen erklärt ihn. Besiegte stehen klein und durchgekreuzt davor,
+            // und gleich ist der nächste Boss dran.
+            val boss = child.currentBoss
+            val beaten = child.bossesBeatenNow
             ComicButton(
                 {
                     greet(
-                        if (beaten) "Den Boss ${boss.name} hast du diese Woche schon besiegt. Super!"
+                        if (beaten > 0) "Super! ${if (beaten == 1) "Einen Boss" else "$beaten Bosse"} hast du diese Woche schon besiegt. Jetzt kommt ${boss.name}! Jeder Stern beim Putzen trifft ihn."
                         else "Das ist ${boss.name}, der Boss dieser Woche! Jeder Stern beim Putzen trifft ihn. Putz morgens und abends, dann schaffst du ihn!",
                     )
                 },
-                bg = if (beaten) M.Mint else Color.White, radius = 2.4.u, border = 0.45.u, shadow = 0.6.u, padding = 0.u,
+                bg = Color.White, radius = 2.4.u, border = 0.45.u, shadow = 0.6.u, padding = 0.u,
             ) {
                 // Innen genug Luft, damit Boss und Lebensbalken nicht am Rand kleben
                 Row(
@@ -97,9 +97,11 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(1.8.u),
                 ) {
-                    BossImage(boss, Modifier.size(6.u), beaten = beaten)
-                    BossBar(1f - child.bossDamageNow.toFloat() / BossHp, Modifier.width(14.u).height(2.4.u))
-                    if (beaten) IconArt(Icon.CHECK, Modifier.size(3.4.u))
+                    if (beaten > 0) Row(horizontalArrangement = Arrangement.spacedBy(0.2.u)) {
+                        (0 until beaten).toList().takeLast(3).forEach { k -> BossImage(bossOfWeek(k), Modifier.size(4.6.u), beaten = true) }
+                    }
+                    BossImage(boss, Modifier.size(6.4.u))
+                    BossBar(child.bossLeft, Modifier.width(14.u).height(2.4.u))
                 }
             }
         }

@@ -157,8 +157,8 @@ fun DrawScope.drawCrown(top: Offset, w: Float, locked: Boolean = false) {
 }
 
 /**
- * Boss-Monster: ein großes Monster mit Hörnern und rotem Zacken-Schein, das bedrohlich wackelt.
- * [beaten] zeigt es platt und blass mit Pflaster-Kreuz, [tint] färbt es für noch nicht besiegte Bosse im Album ein.
+ * Boss-Monster als echtes, farbiges 3D-Monster (dieselben Bilder wie die Riesen-Bosse), das bedrohlich wackelt.
+ * [beaten] zeigt es weiter in Farbe, mit einem dicken roten Kreuz darüber. [tint] färbt es als Schatten (noch nie besiegt).
  */
 @Composable
 fun BossImage(boss: de.putzalarm.app.data.Boss, modifier: Modifier = Modifier, beaten: Boolean = false, tint: Color? = null, hit: Float = 0f) {
@@ -166,54 +166,24 @@ fun BossImage(boss: de.putzalarm.app.data.Boss, modifier: Modifier = Modifier, b
     val time by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
     Canvas(modifier.aspectRatio(1f)) {
         val d = size.minDimension
-        val c = Offset(center.x, center.y + d * 0.06f)
-        val wob = if (beaten || tint != null) 0f else sin(time * 2 * PI.toFloat()) * 4f
-        if (!beaten && tint == null) {
-            // Zacken-Schein hinter dem Boss
-            val spikes = Path()
-            val n = 14
-            for (i in 0 until n * 2) {
-                val a = (i / (n * 2f) + time / n) * 2 * PI.toFloat()
-                val r = if (i % 2 == 0) d * 0.49f else d * 0.38f
-                val x = c.x + kotlin.math.cos(a) * r
-                val y = c.y + sin(a) * r
-                if (i == 0) spikes.moveTo(x, y) else spikes.lineTo(x, y)
-            }
-            spikes.close()
-            drawPath(spikes, Color(0xFFFF3B30).copy(alpha = 0.85f))
-            drawPath(spikes, M.Ink, style = Stroke(d * 0.015f, join = StrokeJoin.Round))
-        }
-        // Hörner
-        val hornCol = tint ?: if (beaten) Color(0xFFBBB3C8) else Color(0xFFFFF3D6)
-        for (side in listOf(-1f, 1f)) {
-            val bx = c.x + side * d * 0.2f
-            val by = c.y - d * 0.24f
-            val horn = Path().apply {
-                moveTo(bx - side * d * 0.07f, by + d * 0.04f)
-                quadraticBezierTo(bx + side * d * 0.1f, by - d * 0.06f, bx + side * d * 0.13f, by - d * 0.22f)
-                quadraticBezierTo(bx + side * d * 0.02f, by - d * 0.1f, bx - side * d * 0.04f, by - d * 0.06f)
-                close()
-            }
-            drawPath(horn, hornCol)
-            drawPath(horn, M.Ink.copy(alpha = if (tint != null) 0.4f else 1f), style = Stroke(d * 0.02f, join = StrokeJoin.Round))
-        }
+        val moving = !beaten && tint == null
         val shake = hit * sin(time * 40 * PI.toFloat()) * d * 0.03f
-        withTransform({ if (beaten) scale(1.05f, 0.8f, Offset(c.x, c.y + d * 0.35f)) }) {
-            drawGerm(Offset(c.x + shake, c.y), d * 0.82f, boss.color, boss.kind, rotation = wob, tint = tint ?: if (beaten) Color(0xFFBBB3C8) else null)
-        }
-        if (beaten) {
-            // Pflaster-Kreuz: besiegt!
-            for (r in listOf(40f, -40f)) withTransform({ rotate(r, c) }) {
-                drawRoundRect(
-                    Color(0xFFFFD9B0), Offset(c.x - d * 0.3f, c.y - d * 0.06f), androidx.compose.ui.geometry.Size(d * 0.6f, d * 0.12f),
-                    androidx.compose.ui.geometry.CornerRadius(d * 0.04f),
-                )
-                drawRoundRect(
-                    M.Ink, Offset(c.x - d * 0.3f, c.y - d * 0.06f), androidx.compose.ui.geometry.Size(d * 0.6f, d * 0.12f),
-                    androidx.compose.ui.geometry.CornerRadius(d * 0.04f), style = Stroke(d * 0.015f),
-                )
-            }
-        }
+        drawGiant(
+            boss.id, Offset(center.x + shake, center.y), d, frame = if (moving && time > 0.5f) 1 else 0,
+            rotation = if (moving) sin(time * 2 * PI.toFloat()) * 4f else 0f, hit = hit, tint = tint,
+        )
+        if (beaten) drawBeatenCross(center, d)
+    }
+}
+
+/** Dickes rotes Kreuz mit dunklem Rand: dieses Monster ist besiegt. */
+fun DrawScope.drawBeatenCross(c: Offset, d: Float) {
+    val r = d * 0.36f
+    for ((a, b) in listOf(Offset(-r, -r) to Offset(r, r), Offset(r, -r) to Offset(-r, r))) {
+        drawLine(M.Ink, c + a, c + b, d * 0.16f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+    }
+    for ((a, b) in listOf(Offset(-r, -r) to Offset(r, r), Offset(r, -r) to Offset(-r, r))) {
+        drawLine(Color(0xFFFF3B30), c + a, c + b, d * 0.1f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
     }
 }
 

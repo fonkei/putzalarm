@@ -148,17 +148,14 @@ data class SessionOutcome(
     val starsTotal: Int = 0,
 )
 
-/** Boss-Monster: jede Woche (Mo bis So) kommt eins. Besiegt wird es mit den Sternen der ganzen Woche. */
-data class Boss(val id: Int, val name: String, val color: Color, val kind: GermKind)
+/**
+ * Boss-Monster der Woche: dieselben Monster wie die Riesen-Bosse ([Giants], gleiche Bilder).
+ * Besiegt wird einer mit den Sternen der Woche; danach kommt gleich der nächste dran.
+ * Gespeicherte Siege (bossWins) sind Ids aus [Giants].
+ */
+typealias Boss = Giant
 
-val Bosses = listOf(
-    Boss(0, "Karies-King", Color(0xFFB57BFF), GermKind.SPIKE),
-    Boss(1, "Riesen-Zucki", Color(0xFFFF5D8F), GermKind.BLOB),
-    Boss(2, "Kaugummi-Koloss", Color(0xFF7BDC5A), GermKind.BEAN),
-    Boss(3, "Schoko-Schreck", Color(0xFFFF7A5C), GermKind.CYCLOPS),
-    Boss(4, "Mega-Plaquo", Color(0xFFFFB627), GermKind.SPIKE),
-    Boss(5, "Bonbon-Brutalo", Color(0xFF5AC8FA), GermKind.BLOB),
-)
+val Bosses: List<Boss> get() = Giants
 
 /** Lebenspunkte eines Bosses: zweimal am Tag gut putzen schafft ihn in etwa fünf Tagen, einmal am Tag reicht nicht. */
 const val BossHp = 80
@@ -167,8 +164,9 @@ const val BossHp = 80
 fun weekKey(day: LocalDate = LocalDate.now()): String =
     "${day.get(IsoFields.WEEK_BASED_YEAR)}-${day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)}"
 
-/** Der Boss dieser Woche. */
-fun bossOfWeek(day: LocalDate = LocalDate.now()): Boss = Bosses[day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) % Bosses.size]
+/** Der [k]-te Boss dieser Woche (0 = der erste; nach jedem Sieg kommt der nächste). */
+fun bossOfWeek(k: Int = 0, day: LocalDate = LocalDate.now()): Boss =
+    Bosses[(day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) + k) % Bosses.size]
 
 /** So viele Sterne (von 12) braucht eine Putzrunde, damit ein seltenes Monster ins Album kommt. */
 const val RareStars = 11
@@ -225,7 +223,13 @@ data class Child(
 
     /** Schaden am Boss dieser Woche; in einer neuen Woche fängt es bei 0 an. */
     val bossDamageNow: Int get() = if (bossWeek == weekKey()) bossDamage else 0
-    val bossBeatenNow: Boolean get() = bossDamageNow >= BossHp
+    /** Wie viele Bosse diese Woche schon besiegt sind; der nächste steht schon bereit. */
+    val bossesBeatenNow: Int get() = bossDamageNow / BossHp
+    val currentBoss: Boss get() = bossOfWeek(bossesBeatenNow)
+    /** Lebensbalken des aktuellen Bosses: 1 = voll. */
+    val bossLeft: Float get() = 1f - (bossDamageNow % BossHp).toFloat() / BossHp
+    /** Wie oft dieses Boss-Monster besiegt wurde, als Boss der Woche und als Riesen-Boss beim Putzen zusammen. */
+    fun bossWinsOf(id: Int): Int = bossWins.count { it == id } + giantWins.count { it == id }
 
     private val days: Set<LocalDate>
         get() = sessions.map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
@@ -376,7 +380,7 @@ class ProfileStore(context: Context) {
                 stars = c.stars + total,
                 bossWeek = weekKey(),
                 bossDamage = c.bossDamageNow + total,
-                bossWins = if (c.bossDamageNow < BossHp && c.bossDamageNow + total >= BossHp) c.bossWins + bossOfWeek().id else c.bossWins,
+                bossWins = c.bossWins + (c.bossDamageNow / BossHp until (c.bossDamageNow + total) / BossHp).map { bossOfWeek(it).id },
                 sessions = (c.sessions + System.currentTimeMillis()).takeLast(200),
                 stickers = c.stickers + listOfNotNull(fresh, eggMonster),
                 chases = chases,
