@@ -182,16 +182,21 @@ const stage=document.getElementById('stage');
 if(!window.THREE){document.getElementById('loading').textContent='3D konnte nicht geladen werden.';return;}
 THREE.ColorManagement.legacyMode=false;
 const TEST=location.search.includes('test');
+// In der App (assets/buersti/index.html) setzt die Seite window.PUTZ_APP: keine Knöpfe, durchsichtig, sparsam
+const APP=!!window.PUTZ_APP;
+const Android=window.Android||{ready(){},fail(){},slow(){}};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:TEST});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+let renderer;
+try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:TEST});}
+catch(e){Android.fail();document.getElementById('loading').textContent='3D geht auf diesem Gerät nicht.';return;}
+renderer.setPixelRatio(Math.min(devicePixelRatio,APP?1.5:2));
+renderer.shadowMap.enabled=!APP;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 stage.prepend(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(32,16/10,0.1,100);
 const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
-const camFar={pos:V3(0,2.05,10.2),look:V3(0,1.9,0)},camNear={pos:V3(0,3.05,3.6),look:V3(0,3.1,0)};
+const camFar=APP?{pos:V3(0,1.95,8.9),look:V3(0,1.95,0)}:{pos:V3(0,2.05,10.2),look:V3(0,1.9,0)},camNear={pos:V3(0,3.05,3.6),look:V3(0,3.1,0)};
 let camMode=camFar;const camPos=camFar.pos.clone(),camLook=camFar.look.clone();
 camera.position.copy(camPos);camera.lookAt(camLook);
 
@@ -212,7 +217,13 @@ scene.environment=pm.fromScene(envScene,0.04).texture;
 const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,64),new THREE.ShadowMaterial({opacity:.45}));
 ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 const glowDisc=new THREE.Mesh(new THREE.CircleGeometry(2.2,64),new THREE.MeshBasicMaterial({color:0x5b3aa8,transparent:true,opacity:.35}));
-glowDisc.rotation.x=-Math.PI/2;glowDisc.position.y=0.002;scene.add(glowDisc);
+glowDisc.rotation.x=-Math.PI/2;glowDisc.position.y=0.002;if(!APP)scene.add(glowDisc);
+// In der App: weicher Schatten-Fleck statt Schattenberechnung (schneller)
+const blob=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');const g=x.createRadialGradient(32,32,2,32,32,32);
+  g.addColorStop(0,'rgba(20,8,40,.42)');g.addColorStop(1,'rgba(20,8,40,0)');x.fillStyle=g;x.fillRect(0,0,64,64);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.0),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));
+  m.rotation.x=-Math.PI/2;m.position.y=.004;return m;})();
+if(APP){scene.remove(ground);scene.add(blob);}
 
 const mat={
   suit:new THREE.MeshPhysicalMaterial({color:0x2f6bff,metalness:.25,roughness:.28,clearcoat:1,clearcoatRoughness:.12}),
@@ -758,16 +769,18 @@ function moodFor(text){const t=text.toLowerCase();
   if(/\?/.test(t))return 'staunen';
   if(/!/.test(t))return 'grinsen';
   return 'freundlich';}
-function say(text){
+function say(text,ext){
   text=(text||'').trim();if(!text)return;
-  if(synth)synth.cancel();
+  if(synth&&!APP)synth.cancel();
   const seq=phonemize(text);
   Object.assign(talk,{on:true,seq,u:0,pi:0,word:0,lastW:-1,sync:false,audio:false,ended:false,started:false,hold:0,silent:false,unit:.064,waitStart:performance.now(),lastStress:0,endWait:0});
-  bubble.textContent=text;bubble.dataset.off='0';bubbleOff=0;
+  if(!APP){bubble.textContent=text;bubble.dataset.off='0';bubbleOff=0;}
   if(faceSel==='auto'){faceMood=moodFor(text);moodUntil=Infinity;}
   const ex=/!/.test(text),q=/\?/.test(text);
   gest=clip.talk?(ex?(Math.random()<.5?'thumbs':'right'):q?'explain':['explain','right','hip','point'][Math.floor(Math.random()*4)]):null;gestNext=0;
-  if(!muted&&synth&&voice){
+  if(ext){talk.started=true;talk.audio=true;talk.ext=true;
+    if(ext.dur>0)talk.unit=clamp(ext.dur/1000/seq.total,.03,.2);else talk.unit=.068;}
+  else if(!muted&&synth&&voice){
     const ut=new SpeechSynthesisUtterance(text);ut.voice=voice;ut.lang=voice.lang;ut.rate=1.0;ut.pitch=.95;
     ut.onstart=()=>{if(talk.seq!==seq)return;talk.started=true;talk.audio=true;talk.u=0;};
     ut.onboundary=e=>{if(talk.seq!==seq||(e.name&&e.name!=='word'))return;onBoundary(e.charIndex);};
@@ -805,9 +818,9 @@ function loadVoices(){if(!synth)return;voices=synth.getVoices().filter(v=>/^de/i
   voices.sort((a,b)=>score(b)-score(a));
   voices.forEach((v,i)=>{const o=document.createElement('option');o.value=i;o.textContent=v.name.replace(/Microsoft |Google |Online \(Natural\)|- German.*$/g,'').trim()+' ('+v.lang+')';sel.appendChild(o);});
   if(!voice||!voices.includes(voice))voice=voices[0];sel.value=voices.indexOf(voice);}
-if(synth){loadVoices();synth.addEventListener?synth.addEventListener('voiceschanged',loadVoices):(synth.onvoiceschanged=loadVoices);}
-else{document.getElementById('voice').innerHTML='<option>Keine Sprachausgabe im Browser</option>';document.getElementById('voicenote').textContent='Ohne Stimme bewegt er trotzdem den Mund zum Text.';}
-document.getElementById('voice').addEventListener('change',e=>{voice=voices[+e.target.value]||voice;});
+if(synth&&!APP){loadVoices();synth.addEventListener?synth.addEventListener('voiceschanged',loadVoices):(synth.onvoiceschanged=loadVoices);}
+else if(!APP){document.getElementById('voice').innerHTML='<option>Keine Sprachausgabe im Browser</option>';document.getElementById('voicenote').textContent='Ohne Stimme bewegt er trotzdem den Mund zum Text.';}
+if(!APP)document.getElementById('voice').addEventListener('change',e=>{voice=voices[+e.target.value]||voice;});
 
 // =====================================================================
 // BEINE: Füße bleiben stehen (zwei Knochen, Knie zeigt nach vorn)
@@ -891,8 +904,8 @@ function solveLegs(){
 stage.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;drag=true;lastX=e.clientX;velY=0;stage.setPointerCapture(e.pointerId);});
 stage.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lastX;lastX=e.clientX;rotY+=dx*.01;velY=dx*.01;idleT=0;});
 const end=()=>{drag=false;};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
-function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;
-  camFar.pos.z=w/h<1.1?13.5:10.2;camera.updateProjectionMatrix();}
+function resize(){const w=stage.clientWidth||300,h=stage.clientHeight||400;renderer.setSize(w,h,false);camera.aspect=w/h;
+  if(!APP)camFar.pos.z=w/h<1.1?13.5:10.2;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);resize();
 
 // =====================================================================
@@ -904,6 +917,7 @@ let show=false,showNext=0,simT=0;
 const SHOW=['wave','flex','jubel','dance','brush','box','moonwalk','karate','jack','spin','robot','guitar','fly','floss','dab','chicken','hula','stomp','run'];
 function step(dt){
   simT+=dt;const t=simT;clipT+=dt;
+  if(APP)appDirector(t);
   if(show&&t>showNext){const all=SHOW.filter(k=>k!==clipName);setClip(all[Math.floor(Math.random()*all.length)]);showNext=t+4.5;markPose();}
   // Ziel-Pose
   evalClip(clip,reduce?0:clipT,tgt);
@@ -947,7 +961,8 @@ function step(dt){
   clothStep(Math.min(dt,1/30),t);
   // Darth: Visier leuchtet beim Sprechen
   const glowV=.75+mouthS.o*.6;visorMats.forEach(m=>m.color.setRGB(.56*glowV,.91*glowV,1*glowV));
-  if(!talk.on&&bubble.dataset.off==='0'&&(bubbleOff+=dt)>1.2)bubble.dataset.off='1';
+  if(!APP&&!talk.on&&bubble.dataset.off==='0'&&(bubbleOff+=dt)>1.2)bubble.dataset.off='1';
+  if(APP){const hp=B.hips.getWorldPosition(new THREE.Vector3());blob.position.x=hp.x;blob.position.z=hp.z;const k=1/(1+cur[IX.up0]*.8);blob.scale.set(k,k,1);blob.material.opacity=k;}
 }
 function updateFace(dt,t,ly,lx){
   // Ausdruck wählen
@@ -983,7 +998,16 @@ function updateFace(dt,t,ly,lx){
   for(const b of brows){b.g.position.y=.3+face.brow*.045+browKick*.02;b.g.rotation.z=-b.s*face.tilt*.32;}
   cheeks.forEach(c=>{c.position.y=-.14+face.smile*.012+Math.max(0,face.lidL)*.01;});
 }
+let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;
 function frame(){
+  if(APP){requestAnimationFrame(frame);const raw=clock.getDelta();acc+=raw;
+    // höchstens 30 Bilder pro Sekunde, das schont das Tablet
+    if(acc<1/31)return;const dt=Math.min(acc,.07);acc=0;
+    step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);
+    if(!readySent){readySent=true;Android.ready();}
+    fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
+    if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;fpsN=-1e9;if(fps<17)Android.slow();}
+    return;}
   const dt=Math.min(clock.getDelta(),.05);
   if(!drag){rotY+=velY;velY*=.93;idleT+=dt;if(idleT>6&&!reduce&&camMode===camFar)rotY+=Math.sin(simT*.15)*dt*.12;}
   step(dt);
@@ -995,6 +1019,7 @@ function frame(){
 const clock=new THREE.Clock();
 
 // --- Knöpfe ---
+if(!APP){
 function group(prefix,keys,fn){keys.forEach(k=>{const b=document.getElementById(prefix+k);b.addEventListener('click',()=>{keys.forEach(o=>document.getElementById(prefix+o).setAttribute('aria-pressed',o===k));fn(k);});});}
 group('c-',['gold','chrom','neon','darth','feuer','eis'],k=>{costume(k);mini.visible=!!clip.brush&&k!=='darth';});
 group('h-',['none','party','cowboy','wikinger','feuerwehr','bauhelm','pirat','krone','zauberer'],k=>{hatSel=k==='none'?null:k;applyGear();});
@@ -1010,7 +1035,41 @@ document.getElementById('sayown').addEventListener('click',()=>say(own.value));
 own.addEventListener('keydown',e=>{if(e.key==='Enter')say(own.value);});
 document.getElementById('mute').addEventListener('click',e=>{muted=!muted;e.currentTarget.setAttribute('aria-pressed',muted);if(muted&&synth)synth.cancel();});
 document.getElementById('zoom').addEventListener('click',e=>{camMode=camMode===camFar?camNear:camFar;e.currentTarget.setAttribute('aria-pressed',camMode===camNear);e.currentTarget.textContent=camMode===camNear?'Ganzer Körper':'Gesicht nah';});
+}
 
+// --- Steuerung aus der App (Kotlin ruft window.B.* auf) ---
+let fixedPose=null,appMoves=['flex','wave','jubel','dance','brush','box','jack'],nextMove=0,talkHold=0,capeHex=null,pokeUntil=0;
+function appDirector(t){
+  if(talk.on)talkHold=t+.9;
+  if(fixedPose){if(clipName!==fixedPose)setClip(fixedPose);return;}
+  if(t<talkHold){if(clipName!=='idle')setClip('idle');nextMove=t+.6;return;}
+  if(t>nextMove){const all=appMoves.filter(k=>k!==clipName&&CLIPS[k]);if(all.length)setClip(all[Math.floor(Math.random()*all.length)]);nextMove=t+2.6+Math.random()*1.6;}
+  if(faceSel==='lachen'&&t>pokeUntil)faceSel='auto';
+}
+const applyGear0=applyGear;
+applyGear=function(){applyGear0();if(capeHex!==null&&capeSel===null)mat.cape.color.set(capeHex);};
+function appSet(o){
+  if(o.costume&&COSTUMES[o.costume]&&o.costume!==currentCostume){costume(o.costume);mini.visible=!!clip.brush&&o.costume!=='darth';}
+  if('hat' in o)hatSel=ACC[o.hat]?o.hat:null;
+  if('glasses' in o)glassSel=ACC[o.glasses]?o.glasses:null;
+  if(o.cape)capeHex=o.cape;
+  applyGear();
+  if(Array.isArray(o.moves)&&o.moves.length)appMoves=o.moves.filter(k=>CLIPS[k]);
+  if('pose' in o){fixedPose=o.pose&&CLIPS[o.pose]?o.pose:null;if(fixedPose)setClip(fixedPose);}
+}
+if(APP){
+  window.B={
+    set:appSet,
+    poke(){if(!fixedPose){const all=appMoves.filter(k=>k!==clipName);if(all.length)setClip(all[Math.floor(Math.random()*all.length)]);nextMove=simT+3+Math.random()*1.5;}
+      if(!talk.on){faceSel='lachen';pokeUntil=simT+1.5;}},
+    say(text,durMs){if(!fixedPose){setClip('idle');talkHold=simT+.9;}say(text,{dur:durMs||0});},
+    range(ci){if(talk.on&&talk.ext)onBoundary(ci);},
+    end(){if(talk.on)talk.ended=true;},
+  };
+  try{const h=decodeURIComponent(location.hash.replace(/^#/,''));if(h){const o=JSON.parse(h);appSet(o);if(!o.pose)setClip('wave');}else setClip('wave');}catch(e){setClip('wave');}
+  nextMove=1.8;
+}
+if(APP)['bubble','zoom'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
 document.getElementById('loading').remove();
 if(TEST){window.PUTZ={setClip,step,say,talk,renderer,scene,camera,camFar,camNear,costume,FACES,setFace:k=>{faceSel=k;},
   render:(m)=>{const M=m==="near"?camNear:m==="mid"?{pos:new THREE.Vector3(0,2.6,6),look:new THREE.Vector3(0,2.5,0)}:camFar;camera.position.copy(M.pos);camera.lookAt(M.look);renderer.render(scene,camera);},
