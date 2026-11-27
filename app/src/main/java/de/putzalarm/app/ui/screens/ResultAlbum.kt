@@ -47,6 +47,7 @@ import de.putzalarm.app.data.SessionOutcome
 import de.putzalarm.app.data.Giants
 import de.putzalarm.app.data.GiantStars
 import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.chestGear
 import de.putzalarm.app.ui.art.GiantImage
 import de.putzalarm.app.data.newRewards
 import de.putzalarm.app.data.effectNow
@@ -231,7 +232,7 @@ fun ResultScreen(
     CelebrationOverlay(child.effectNow)
     when (scenes.getOrNull(scene)) {
         "ei" -> EggOverlay(outcome.egg, outcome.eggStars, say, sfx) { scene++ }
-        "kiste" -> ChestOverlay(outcome.chest?.let { ChestGear.getOrNull(it) }, outcome.chestStars, say, sfx) { scene++ }
+        "kiste" -> ChestOverlay(outcome.chest?.let { child.chestGear.getOrNull(it) }, outcome.chestStars, say, sfx) { scene++ }
     }
     }
 }

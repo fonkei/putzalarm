@@ -64,6 +64,7 @@ import de.putzalarm.app.ui.art.Costume
 import de.putzalarm.app.ui.art.Gear
 import de.putzalarm.app.ui.art.GearSlot
 import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.chestGear
 import de.putzalarm.app.data.gearStars
 import de.putzalarm.app.data.hasGear
 import de.putzalarm.app.data.wearing
@@ -132,8 +133,8 @@ fun WardrobeScreen(child: Child, onPick: (Child) -> Unit, onBack: () -> Unit, sa
                             onClick = { onPick(if (slot == GearSlot.HAT) child.copy(hat = "") else child.copy(glasses = "")) },
                         ) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { IconArt(Icon.CLOSE, Modifier.fillMaxWidth(0.4f)) } }
                     }
-                    items(Gear.entries.filter { it.slot == slot }.sortedBy { if (it in ChestGear) 10_000 + ChestGear.indexOf(it) else gearStars(it) }) { g ->
-                        val chestIdx = ChestGear.indexOf(g)
+                    items(Gear.entries.filter { it.slot == slot }.sortedBy { if (it in ChestGear) 10_000 + child.chestGear.indexOf(it) else gearStars(it) }) { g ->
+                        val chestIdx = child.chestGear.indexOf(g)
                         val have = child.hasGear(g)
                         Tile(
                             Modifier.fillMaxHeight().aspectRatio(0.75f), if (chestIdx >= 0) -1 else gearStars(g), child.stars, selected = worn == g.key && have,

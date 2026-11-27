@@ -208,6 +208,8 @@ data class Child(
     /** Getragener Hut und getragene Brille (Gear-Key, leer = keins). */
     val hat: String = "",
     val glasses: String = "",
+    /** Eigene Reihenfolge der Schätze in den Schatzkisten (Gear-Keys), damit jedes Kind etwas anderes findet. */
+    val chestOrder: List<String> = emptyList(),
 ) {
     /** Geöffnete Schatzkisten und das Feld auf der aktuellen Karte (0 bis MapLen - 1). */
     val chests: Int get() = mapSteps / MapLen
@@ -323,12 +325,21 @@ class ProfileStore(context: Context) {
     private val backup = File(context.filesDir, "kinder.sicherung.json")
     val photoDir = File(context.filesDir, "fotos").apply { mkdirs() }
 
-    var children by mutableStateOf(load())
+    /** Ob beim Laden neue Schatz-Reihenfolgen vergeben wurden (muss vor [children] stehen, wegen der Reihenfolge beim Anlegen). */
+    private var chestOrdersAdded = false
+
+    var children by mutableStateOf(withChestOrders(load()))
         private set
+
+    init {
+        // Neu vergebene Schatz-Reihenfolgen gleich festhalten, damit sie beim nächsten Start dieselben sind
+        if (chestOrdersAdded) save()
+    }
 
     fun get(id: String): Child? = children.firstOrNull { it.id == id }
 
-    fun upsert(child: Child) {
+    fun upsert(child0: Child) {
+        val child = if (child0.chestOrder.isEmpty()) chestOrderFor(child0, children.filter { it.id != child0.id }) else child0
         val old = get(child.id)
         if (old?.photo != null && old.photo != child.photo) File(photoDir, old.photo).delete()
         children = if (old == null) children + child else children.map { if (it.id == child.id) child else it }
@@ -371,7 +382,7 @@ class ProfileStore(context: Context) {
         // Schatzkarte: ein Feld weiter; auf dem letzten Feld geht die Kiste auf
         val steps = c.mapSteps + 1
         val chest = if (steps % MapLen == 0) steps / MapLen - 1 else null
-        val chestStars = if (chest != null && chest >= ChestGear.size) ChestStars else 0
+        val chestStars = if (chest != null && chest >= c.chestGear.size) ChestStars else 0
         val giantStars = if (giant != null && giantBeaten) GiantStars else 0
         val total = zoneStars + giantStars + eggStars + chestStars
         upsert(
@@ -397,6 +408,35 @@ class ProfileStore(context: Context) {
      * Lädt die Profile. Ist die Datei kaputt, kommt die Sicherung von vor dem letzten Speichern dran;
      * die kaputte Datei wird nie überschrieben, sondern mit Zeitstempel beiseitegelegt.
      */
+    /** Gibt jedem Kind ohne eigene Schatz-Reihenfolge eine, die sich von denen der anderen Kinder möglichst unterscheidet. */
+    private fun withChestOrders(list: List<Child>): List<Child> {
+        val done = mutableListOf<Child>()
+        for (c in list) {
+            if (hasValidOrder(c)) done += c
+            else {
+                chestOrdersAdded = true
+                done += chestOrderFor(c, done + list.filter { hasValidOrder(it) })
+            }
+        }
+        return done
+    }
+
+    private fun hasValidOrder(c: Child) = c.chestOrder.sorted() == ChestGear.map { it.key }.sorted()
+
+    /**
+     * Wählt die Reihenfolge der Kisten-Schätze für [c]: Schon geöffnete Kisten behalten ihren Schatz,
+     * und an jeder Stelle soll möglichst ein anderer Schatz liegen als bei den [others].
+     */
+    private fun chestOrderFor(c: Child, others: List<Child>): Child {
+        val keys = ChestGear.map { it.key }
+        val fixed = keys.take(c.chests.coerceAtMost(keys.size))
+        fun perms(rest: List<String>): List<List<String>> = if (rest.isEmpty()) listOf(emptyList()) else rest.flatMap { k -> perms(rest - k).map { listOf(k) + it } }
+        val options = perms(keys - fixed.toSet()).map { fixed + it }.shuffled()
+        val taken = others.map { it.chestOrder }.filter { it.isNotEmpty() }
+        val best = options.minBy { o -> taken.sumOf { t -> o.indices.sumOf { i -> if (t.getOrNull(i) == o[i]) keys.size - i else 0 } } }
+        return c.copy(chestOrder = best)
+    }
+
     private fun load(): List<Child> {
         if (!file.exists() && !backup.exists()) return emptyList()
         parse(file)?.let { return it }
@@ -433,6 +473,7 @@ class ProfileStore(context: Context) {
                     giantWins = o.optJSONArray("giantWins").ints(),
                     hat = o.optString("hat"),
                     glasses = o.optString("glasses"),
+                    chestOrder = o.optJSONArray("chestOrder").strings(),
                 )
             }
         }
@@ -461,7 +502,7 @@ class ProfileStore(context: Context) {
                     .put("chases", JSONObject().apply { c.chases.forEach { (k, v) -> put(k.toString(), v) } })
                     .put("eggTimer", c.eggTimer).put("mapSteps", c.mapSteps)
                     .put("giantTimer", c.giantTimer).put("giantWins", JSONArray(c.giantWins))
-                    .put("hat", c.hat).put("glasses", c.glasses),
+                    .put("hat", c.hat).put("glasses", c.glasses).put("chestOrder", JSONArray(c.chestOrder)),
             )
         }
         synchronized(this) {
@@ -478,6 +519,8 @@ class ProfileStore(context: Context) {
         }
     }
 }
+
+private fun JSONArray?.strings(): List<String> = if (this == null) emptyList() else (0 until length()).map { getString(it) }
 
 private fun JSONArray?.ints(): List<Int> = if (this == null) emptyList() else (0 until length()).map { getInt(it) }
 private fun JSONObject?.intMap(): Map<Int, Int> =

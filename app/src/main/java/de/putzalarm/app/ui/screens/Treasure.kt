@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import de.putzalarm.app.audio.Sfx
 import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.chestGear
 import de.putzalarm.app.data.Child
 import de.putzalarm.app.data.MapLen
 import de.putzalarm.app.data.MaxLevel
@@ -252,14 +253,14 @@ fun TreasureMapScreen(child: Child, onBack: () -> Unit, say: (String) -> Unit) {
             pose = HeroPose.WAVE,
         )
         RoundIconButton(Icon.BACK, onBack, Modifier.align(Alignment.TopStart).padding(3.u), size = 6.u)
-        // Oben rechts: was in den Kisten steckt (gefunden oder noch verschlossen)
+        // Unten rechts (im Meer, weg von der Kiste oben rechts): was in den Kisten steckt, gefunden oder noch verschlossen
         Row(
-            Modifier.align(Alignment.TopEnd).padding(3.u).comic(Color.White, 2.4.u, 0.45.u, 0.6.u).padding(horizontal = 1.4.u, vertical = 0.8.u),
+            Modifier.align(Alignment.BottomEnd).padding(3.u).comic(Color.White, 2.4.u, 0.45.u, 0.6.u).padding(horizontal = 1.4.u, vertical = 0.8.u),
             horizontalArrangement = Arrangement.spacedBy(1.2.u),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ChestIcon(Modifier.width(5.u), open = 1f)
-            ChestGear.forEachIndexed { i, g ->
+            child.chestGear.forEachIndexed { i, g ->
                 Box(Modifier.size(7.u, 9.u), contentAlignment = Alignment.Center) {
                     GearPreview(g, Modifier.fillMaxSize(), locked = child.chests <= i)
                 }
