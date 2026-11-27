@@ -423,6 +423,8 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
                     game.giantPhase == GiantPhase.FIGHT -> HeroPose.BOX
                     else -> HeroPose.BRUSH
                 },
+                // Beim Putzen läuft die Kamera: Bürsti als fertige Bilder, damit Kamerabild und Erkennung flüssig bleiben
+                live3D = !cameraOk,
             )
         }
         if (game.phase == Phase.RUN) {
