@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.compose.foundation.clickable
@@ -55,6 +58,8 @@ object BuerstiBus {
     fun end() = send("B.end()")
 }
 
+private const val TAG = "Buersti3D"
+
 private fun Outfit.toJson(pose: HeroPose?) = JSONObject().apply {
     put("costume", costume.key)
     put("cape", String.format("#%06X", cape.toArgb() and 0xFFFFFF))
@@ -87,10 +92,19 @@ fun Mascot3D(
             isHorizontalScrollBarEnabled = false
             // Berührungen gehen an die App, nicht an die Szene
             setOnTouchListener { _, _ -> true }
+            // Meldungen der Szene landen im Geräteprotokoll (adb logcat -s Buersti3D)
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                    Log.i(TAG, "${m.message()} (${m.lineNumber()})")
+                    return true
+                }
+            }
+            Log.i(TAG, "WebView ${WebView.getCurrentWebViewPackage()?.versionName}")
             addJavascriptInterface(object {
-                @JavascriptInterface fun ready() { post { ready = true } }
-                @JavascriptInterface fun fail() { post { Buersti3D.enabled = false } }
-                @JavascriptInterface fun slow() { post { Buersti3D.enabled = false } }
+                @JavascriptInterface fun ready() { Log.i(TAG, "bereit"); post { ready = true } }
+                @JavascriptInterface fun fail() { Log.w(TAG, "kein WebGL"); post { Buersti3D.enabled = false } }
+                @JavascriptInterface fun slow() { Log.w(TAG, "zu langsam"); post { Buersti3D.enabled = false } }
+                @JavascriptInterface fun log(msg: String) { Log.i(TAG, msg) }
             }, "Android")
             loadUrl("file:///android_asset/buersti/index.html#" + Uri.encode(look.toJson(pose)))
         }
