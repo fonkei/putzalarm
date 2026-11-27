@@ -1207,7 +1207,10 @@ if(APP)['bubble','zoom'].forEach(id=>{const e=document.getElementById(id);if(e)e
 document.getElementById('loading').remove();
 if(TEST){window.PUTZ={setClip,step,say,talk,renderer,scene,camera,camFar,camNear,costume,FACES,setFace:k=>{faceSel=k;},
   render:(m)=>{const M=m==="near"?camNear:m==="mid"?{pos:new THREE.Vector3(0,2.6,6),look:new THREE.Vector3(0,2.5,0)}:camFar;camera.position.copy(M.pos);camera.lookAt(M.look);renderer.render(scene,camera);},
-  setRot:r=>{rotY=r;},setGest:g=>{gest=g;},custom:(keys,o)=>{CLIPS._c=Object.assign({T:1,talk:true},o||{},{keys});CLIPS._c.packed=keys.map(pack);setClip('_c');},mini,setHat:k=>{hatSel=k;applyGear();},setGlass:k=>{glassSel=k;applyGear();},clips:Object.keys(CLIPS),B,cur,IX};return;}
+  setRot:r=>{rotY=r;},setGest:g=>{gest=g;},custom:(keys,o)=>{CLIPS._c=Object.assign({T:1,talk:true},o||{},{keys});CLIPS._c.packed=keys.map(pack);setClip('_c');},mini,setHat:k=>{hatSel=k;applyGear();},setGlass:k=>{glassSel=k;applyGear();},clips:Object.keys(CLIPS),B,cur,IX,
+  // für tools/render_pro_sprites.js (Ersatzbilder der App aus diesem Modell)
+  R:{setMouth,noBlink:()=>{blinkT=1e9;blinkPhase=-1;glance=null;glanceT=1e9;},capeMesh,ACC,ground,glowDisc,blob,mini,mouthG,hero,mat,CLIPS,
+    setFace:k=>{faceSel=k;moodUntil=0;},setCape:hex=>{mat.cape.color.setHex(hex);}}};return;}
 frame();
 })();
 </script>
