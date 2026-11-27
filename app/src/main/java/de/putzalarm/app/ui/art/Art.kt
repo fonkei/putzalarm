@@ -57,10 +57,12 @@ fun Mascot(
     onTap: (() -> Unit)? = null,
     outfit: Outfit? = null,
     still: Boolean = false,
+    /** false: nur die fertigen Bilder, z. B. beim Putzen, damit Kamera und Erkennung die volle Leistung haben. */
+    live3D: Boolean = true,
 ) {
     val look = outfit ?: LocalOutfit.current
     // Bewegt: der neue 3D-Bürsti. Ruhige Vorschaubilder (z. B. im Schrank) bleiben fertige Bilder.
-    if (!still && Buersti3D.enabled) {
+    if (!still && live3D && Buersti3D.enabled) {
         Mascot3D(modifier, pose, look, onTap) { m -> MascotSprites(m, pose, null, look, false) }
     } else {
         MascotSprites(modifier, pose, onTap, look, still)

@@ -210,7 +210,7 @@ fun BrushScreen(
             }
         }
         GameLayer(game, track, cameraOk, if (showMeter) sensitivity else null, Modifier.fillMaxSize().onSizeChanged { viewSize = Size(it.width.toFloat(), it.height.toFloat()) })
-        Hud(game, Modifier.fillMaxSize(), onPause = { paused = true })
+        Hud(game, Modifier.fillMaxSize(), cameraOk, onPause = { paused = true })
         if (game.phase == Phase.COUNTDOWN) CountdownOverlay(game.countdown)
         if (game.phase == Phase.DONE) DoneOverlay()
         if (paused) PauseOverlay(onResume = { paused = false }, onQuit = { voice.stop(); onQuit() })
@@ -387,7 +387,7 @@ private fun DrawScope.drawMouthBrackets(mouth: Offset, face: FaceReading, u: Flo
 }
 
 @Composable
-private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
+private fun Hud(game: BrushGame, modifier: Modifier, cameraOk: Boolean, onPause: () -> Unit) {
     Box(modifier.padding(3.5.u)) {
         // Punkte
         Row(
@@ -423,6 +423,8 @@ private fun Hud(game: BrushGame, modifier: Modifier, onPause: () -> Unit) {
                     game.giantPhase == GiantPhase.FIGHT -> HeroPose.BOX
                     else -> HeroPose.BRUSH
                 },
+                // Beim Putzen läuft die Kamera: Bürsti als fertige Bilder, damit Kamerabild und Erkennung flüssig bleiben
+                live3D = !cameraOk,
             )
         }
         if (game.phase == Phase.RUN) {
