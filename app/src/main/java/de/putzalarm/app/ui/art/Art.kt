@@ -67,6 +67,9 @@ fun Mascot(
     }
 }
 
+/** Mundbilder beim Sprechen: zu, halb, offen in unregelmäßigem Takt. */
+private val TalkMouth = intArrayOf(1, 2, 1, 0, 2, 2, 1, 0, 1, 2, 0, 1)
+
 /** Die alten, fertig gerenderten Bilder (auch Ersatz, solange die 3D-Szene lädt oder falls das Gerät sie nicht schafft). */
 @Composable
 private fun MascotSprites(
@@ -95,8 +98,12 @@ private fun MascotSprites(
                 if (start == 0L) start = now
                 if (t0 == 0L) t0 = now + if (poke > 0) 1500L else 1800L
                 clockMs = now
-                // Meist ein Lächeln, ab und zu grinsen oder breit lachen; beim Jubeln immer lachen
-                if (now > t0) {
+                // Spricht er (Stimme läuft), bewegt sich der Mund im Sprechtakt
+                if (BuerstiBus.talking) {
+                    mouth = TalkMouth[((now / 110) % TalkMouth.size).toInt()]
+                    t0 = now + 400L
+                } else if (now > t0) {
+                    // Meist ein Lächeln, ab und zu grinsen oder breit lachen; beim Jubeln immer lachen
                     mouth = if (mouth > 0) 0 else if (Random.nextBoolean()) 1 else 2
                     t0 = now + if (mouth > 0) Random.nextLong(900L, 2000L) else Random.nextLong(1800L, 4200L)
                 }
