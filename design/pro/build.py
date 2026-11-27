@@ -13,7 +13,7 @@ s=t.index('<script>\n(function(){');e=t.rindex('</script>')
 core=t[s+len('<script>'):e]
 app='''<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}#stage{position:absolute;inset:0}canvas{display:block;width:100%;height:100%}#loading{display:none}</style>
+<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}#stage{position:fixed!important;left:0;top:0;width:100vw!important;height:100vh!important}canvas{display:block;width:100%!important;height:100%!important}#loading{display:none}</style>
 </head><body><div id="stage"><div id="loading"></div></div>
 <script>window.PUTZ_APP=true;window.onerror=function(m,u,l,c){try{Android.log("JS-Fehler: "+m+" @"+l+":"+c);}catch(e){}};</script>
 <script src="three.min.js"></script>

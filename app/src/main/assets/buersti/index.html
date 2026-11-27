@@ -1,6 +1,6 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}#stage{position:absolute;inset:0}canvas{display:block;width:100%;height:100%}#loading{display:none}</style>
+<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}#stage{position:fixed!important;left:0;top:0;width:100vw!important;height:100vh!important}canvas{display:block;width:100%!important;height:100%!important}#loading{display:none}</style>
 </head><body><div id="stage"><div id="loading"></div></div>
 <script>window.PUTZ_APP=true;window.onerror=function(m,u,l,c){try{Android.log("JS-Fehler: "+m+" @"+l+":"+c);}catch(e){}};</script>
 <script src="three.min.js"></script>
@@ -849,9 +849,9 @@ function solveLegs(){
 stage.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;drag=true;lastX=e.clientX;velY=0;stage.setPointerCapture(e.pointerId);});
 stage.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lastX;lastX=e.clientX;rotY+=dx*.01;velY=dx*.01;idleT=0;});
 const end=()=>{drag=false;};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
-function resize(){const w=stage.clientWidth||300,h=stage.clientHeight||400;renderer.setSize(w,h,false);camera.aspect=w/h;
+function resize(){const w=(APP?innerWidth:stage.clientWidth)||stage.clientWidth||300,h=(APP?innerHeight:stage.clientHeight)||stage.clientHeight||400;renderer.setSize(w,h,false);camera.aspect=w/h;
   if(!APP)camFar.pos.z=w/h<1.1?13.5:10.2;camera.updateProjectionMatrix();}
-new ResizeObserver(resize).observe(stage);resize();
+new ResizeObserver(resize).observe(stage);resize();if(APP)addEventListener('resize',resize);
 
 // =====================================================================
 // HAUPTSCHLEIFE
@@ -958,11 +958,12 @@ function frame(){
     catch(e){dead=true;alog('Fehler beim Zeichnen: '+e.message);Android.fail();return;}
     // erst melden, wenn wirklich etwas Sichtbares gezeichnet wurde; sonst bleiben die Bilder
     if(!readySent){const n=drawnPixels();tries++;
-      if(n>200){readySent=true;alog('bereit, '+n+' Punkte sichtbar, '+renderer.domElement.width+'x'+renderer.domElement.height+' in '+innerWidth+'x'+innerHeight);Android.ready();}
+      const ch=renderer.domElement.getBoundingClientRect().height;if(ch<10){if(tries%5==1){alog('Fläche noch 0 hoch');resize();}if(tries>=20){dead=true;Android.fail();}return;}
+      if(n>200){readySent=true;alog('bereit, '+n+' Punkte sichtbar, '+renderer.domElement.width+'x'+renderer.domElement.height+' auf '+Math.round(ch)+' px Höhe in '+innerWidth+'x'+innerHeight);Android.ready();}
       else if(tries>=20){dead=true;alog('nichts gezeichnet ('+n+')');Android.fail();}
       return;}
     // alle 10 s nachsehen, ob er noch sichtbar gezeichnet wird; sonst zurück zu den Bildern
-    if((chkT+=dt)>10){chkT=0;const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
+    if((chkT+=dt)>10){chkT=0;if(renderer.domElement.getBoundingClientRect().height<10)resize();const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
     // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
     if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);

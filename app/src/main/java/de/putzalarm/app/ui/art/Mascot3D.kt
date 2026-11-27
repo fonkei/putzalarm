@@ -87,6 +87,8 @@ fun Mascot3D(
     val web = remember {
         WebView(context).apply {
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // ohne feste Größe meldet die WebView der Seite 0 px Höhe und Bürsti wird unsichtbar gezeichnet
+            layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
             settings.javaScriptEnabled = true
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
