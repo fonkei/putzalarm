@@ -252,9 +252,11 @@ function roundedRect(w,h,r){const s=new THREE.Shape(),x=-w/2,y=-h/2;
   s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);return s;}
 function slab(shape,depth,bevel,material){const g=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:6,curveSegments:24});
   g.center();return new THREE.Mesh(g,material);}
-const cap=(r,l,m)=>new THREE.Mesh(new THREE.CapsuleGeometry(r,l,8,20),m);
-const ball=(r,m)=>new THREE.Mesh(new THREE.SphereGeometry(r,40,28),m);
-function roundBox(w,h,d,r,m){const g=new THREE.BoxGeometry(w,h,d,24,24,24),p=g.attributes.position,n=g.attributes.normal;
+// In der App feiner Gitter nur so weit, wie man es auf dem Tablet sieht (weniger Dreiecke = flüssiger)
+const LO=APP||location.search.includes('lo');
+const cap=(r,l,m)=>new THREE.Mesh(new THREE.CapsuleGeometry(r,l,LO?4:8,LO?12:20),m);
+const ball=(r,m)=>new THREE.Mesh(new THREE.SphereGeometry(r,LO?(r<.06?18:26):40,LO?(r<.06?12:18):28),m);
+function roundBox(w,h,d,r,m){const g=new THREE.BoxGeometry(w,h,d,LO?12:24,LO?12:24,LO?12:24),p=g.attributes.position,n=g.attributes.normal;
   const hx=w/2-r,hy=h/2-r,hz=d/2-r,v=new THREE.Vector3(),c=new THREE.Vector3();
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);c.set(THREE.MathUtils.clamp(v.x,-hx,hx),THREE.MathUtils.clamp(v.y,-hy,hy),THREE.MathUtils.clamp(v.z,-hz,hz));
     const dir=v.clone().sub(c).normalize();v.copy(c).addScaledVector(dir,r);p.setXYZ(i,v.x,v.y,v.z);n.setXYZ(i,dir.x,dir.y,dir.z);}
@@ -263,7 +265,7 @@ const shield=new THREE.Shape();shield.moveTo(0,.2);shield.lineTo(.18,.13);shield
 const bc=document.createElement('canvas');bc.width=bc.height=128;const bx=bc.getContext('2d');
 bx.font='900 104px "Arial Black", Arial, sans-serif';bx.textAlign='center';bx.textBaseline='middle';bx.lineWidth=10;bx.strokeStyle='#24123a';bx.strokeText('B',64,70);bx.fillStyle='#2f6bff';bx.fillText('B',64,70);
 const bTex=new THREE.CanvasTexture(bc);bTex.encoding=THREE.sRGBEncoding;
-const latheGeo=(pts,sx,sz,seg=56)=>{const g=new THREE.LatheGeometry(new THREE.SplineCurve(pts.map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(80),seg);g.scale(sx,1,sz);return g;};
+const latheGeo=(pts,sx,sz,seg=56)=>{const g=new THREE.LatheGeometry(new THREE.SplineCurve(pts.map(a=>new THREE.Vector2(a[0],a[1]))).getPoints(LO?50:80),LO?Math.round(seg*.65):seg);g.scale(sx,1,sz);return g;};
 const ss=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const clamp=THREE.MathUtils.clamp,lerp=THREE.MathUtils.lerp;
 
@@ -309,7 +311,7 @@ function chainW(list,y,w=.1){for(let i=0;i<list.length-1;i++){const [b,top]=list
 const torsoPts=[[0,1.08],[.15,1.1],[.215,1.22],[.21,1.4],[.19,1.6],[.215,1.82],[.29,2.02],[.35,2.18],[.36,2.3],[.31,2.42],[.2,2.53],[.12,2.63],[.105,2.8],[.1,2.95]];
 skin(latheGeo(torsoPts,1.45,.78,72),v=>chainW([['hips',1.44],['spine',1.86],['chest',2.5],['neck',2.78],['head',99]],v.y,v.y>2.45?.07:.12),mat.suit);
 const chestParts=new THREE.Group();B.chest.add(chestParts);
-function pecGeo(s){const g=new THREE.SphereGeometry(.2,56,36),p=g.attributes.position,v=new THREE.Vector3();
+function pecGeo(s){const g=new THREE.SphereGeometry(.2,LO?36:56,LO?24:36),p=g.attributes.position,v=new THREE.Vector3();
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);let {x,y,z}=v;const u=x*s;            // u > 0 = Richtung Schulter
     const low=clamp(-y/.2,0,1);
     y=y<0?y*.62:y*.82;                                  // klare Unterkante, flacher oben
@@ -1115,7 +1117,7 @@ function updateFace(dt,t,ly,lx){
   for(const b of brows){b.g.position.y=.3+face.brow*.045+browKick*.02;b.g.rotation.z=-b.s*face.tilt*.32;}
   cheeks.forEach(c=>{c.position.y=-.14+face.smile*.012+Math.max(0,face.lidL)*.01;});
 }
-let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;let dead=false,tries=0,chkT=0;let lastFps=0,lastPx=1;let chkN=0,logT=0,logN=0;
+let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;let dead=false,tries=0,chkT=0;let lastFps=0,lastPx=1;let chkN=0,logT=0,logN=0,msStep=0,msRender=0,msGpu=0,wantGpu=true;
 renderer.domElement.addEventListener('webglcontextlost',e=>{dead=true;alog('WebGL verloren');Android.fail();});
 function drawnPixels(){const gl=renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
   try{const px=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px);let n=0;
@@ -1127,7 +1129,10 @@ function frame(){
     // nicht mehr als 30 Bilder pro Sekunde; ist das Gerät langsamer, jedes Bild zeichnen statt jedes zweite
     if(acc<.024)return;const dt=Math.min(acc,.07);acc=0;
     if(dead)return;
-    try{step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);}
+    try{const q0=performance.now();step(dt);const q1=performance.now();camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);
+      const q2=performance.now();msStep+=q1-q0;msRender+=q2-q1;
+      // einmal pro Protokoll-Runde warten, bis die Grafik fertig ist: so sieht man, ob die GPU bremst
+      if(wantGpu){wantGpu=false;const gl=renderer.getContext();gl.finish();msGpu=performance.now()-q2;}}
     catch(e){dead=true;alog('Fehler beim Zeichnen: '+e.message);Android.fail();return;}
     // erst melden, wenn wirklich etwas Sichtbares gezeichnet wurde; sonst bleiben die Bilder
     if(!readySent){const n=drawnPixels();tries++;
@@ -1138,7 +1143,7 @@ function frame(){
     // alle 10 s nachsehen, ob er noch sichtbar gezeichnet wird; sonst zurück zu den Bildern
     // zweimal nachkontrollieren (nach 10 und 30 s), öfter nicht: das Auslesen lässt das Bild kurz stocken
     if(chkN<2&&(chkT+=dt)>(chkN?20:10)){chkT=0;chkN++;if(renderer.domElement.getBoundingClientRect().height<10)resize();const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
-    logN++;if((logT+=dt)>=20){alog('fps '+(logN/logT).toFixed(1)+' (20 s)');logT=0;logN=0;}
+    logN++;if((logT+=dt)>=20){alog('fps '+(logN/logT).toFixed(1)+' (20 s), ms je Bild: Bewegung '+(msStep/logN).toFixed(1)+', Zeichnen '+(msRender/logN).toFixed(1)+', GPU-Rest '+msGpu.toFixed(1)+', Aufrufe '+renderer.info.render.calls+', Dreiecke '+renderer.info.render.triangles);logT=0;logN=0;msStep=0;msRender=0;wantGpu=true;}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
     // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
     if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);
