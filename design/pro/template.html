@@ -297,10 +297,22 @@ function chainW(list,y,w=.1){for(let i=0;i<list.length-1;i++){const [b,top]=list
 const torsoPts=[[0,1.08],[.15,1.1],[.215,1.22],[.21,1.4],[.19,1.6],[.215,1.82],[.29,2.02],[.35,2.18],[.36,2.3],[.31,2.42],[.2,2.53],[.12,2.63],[.105,2.8],[.1,2.95]];
 skin(latheGeo(torsoPts,1.45,.78,72),v=>chainW([['hips',1.44],['spine',1.86],['chest',2.5],['neck',2.78],['head',99]],v.y,v.y>2.45?.07:.12),mat.suit);
 const chestParts=new THREE.Group();B.chest.add(chestParts);
-for(const x of [-.16,.16]){const pec=ball(.2,mat.suit);pec.scale.set(1.25,.7,.5);pec.position.set(x,.18,.19);pec.rotation.z=x>0?-.12:.12;chestParts.add(pec);}
+function pecGeo(s){const g=new THREE.SphereGeometry(.2,56,36),p=g.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);let {x,y,z}=v;const u=x*s;            // u > 0 = Richtung Schulter
+    const low=clamp(-y/.2,0,1);
+    y=y<0?y*.62:y*.82;                                  // klare Unterkante, flacher oben
+    y+=u*.42*(1-low*.5);                                 // steigt zur Achsel hin an
+    x=x*1.12;if(u<0)x*=.9;                               // innen schmaler: Rinne in der Mitte
+    z=z*(.34+.2*low+.06*clamp(u/.2,0,1));               // unten am dicksten
+    if(z<0)z*=.6;
+    p.setXYZ(i,x,y,z);}
+  g.computeVertexNormals();return g;}
+for(const s of [-1,1]){const pec=new THREE.Mesh(pecGeo(s),mat.suit);pec.position.set(s*.19,.15,.205);pec.rotation.z=-s*.06;chestParts.add(pec);}
+// Schlüsselbein-Übergang und Brustbein-Linie
+{const ster=new THREE.Mesh(new THREE.CapsuleGeometry(.018,.2,6,12),mat.suit);ster.position.set(0,.14,.245);ster.scale.z=.6;chestParts.add(ster);}
 {const traps=ball(.22,mat.suit);traps.scale.set(1.7,.5,.9);traps.position.set(0,.5,-.03);chestParts.add(traps);}
-const emb=slab(shield,.03,.025,mat.trim);emb.scale.setScalar(1.3);emb.position.set(0,.16,.29);chestParts.add(emb);
-const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.scale.setScalar(1.3);bPlane.position.set(0,.17,.35);chestParts.add(bPlane);
+const emb=slab(shield,.03,.025,mat.trim);emb.scale.setScalar(1.15);emb.position.set(0,.13,.315);emb.rotation.x=-.08;chestParts.add(emb);
+const bPlane=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),new THREE.MeshStandardMaterial({map:bTex,transparent:true,roughness:.3}));bPlane.scale.setScalar(1.15);bPlane.position.set(0,.135,.37);bPlane.rotation.x=-.08;chestParts.add(bPlane);
 const beltG=new THREE.Group();B.spine.add(beltG);
 {const belt=new THREE.Mesh(new THREE.TorusGeometry(.262,.045,16,64),mat.trim);belt.rotation.x=Math.PI/2;belt.scale.set(1.45*.252/.262,.78,1);belt.position.y=.06;beltG.add(belt);
  const buckle=roundBox(.2,.16,.05,.024,mat.trim);buckle.position.set(0,.06,.21);beltG.add(buckle);}
@@ -309,7 +321,7 @@ for(const [bn,y,r] of [['hips',.08,.3],['spine',.33,.27],['chest',.31,.37]]){con
 const neonRings=[];hero.traverse(o=>{if(o.userData.neon)neonRings.push(o);});
 
 // Arme: Schulter, Bizeps, Ellbogen und Unterarm als eine weiche Haut
-const armPts=[[0,.16],[.1,.14],[.165,.06],[.172,-.04],[.145,-.15],[.13,-.24],[.137,-.32],[.118,-.42],[.097,-.5],[.106,-.58],[.116,-.66],[.1,-.8],[.084,-.92],[0,-.96]];
+const armPts=[[0,.16],[.1,.14],[.165,.06],[.172,-.04],[.145,-.15],[.13,-.24],[.137,-.32],[.118,-.42],[.097,-.5],[.106,-.58],[.116,-.66],[.1,-.8],[.084,-.92],[0,-.96]].reverse();
 const hands={};
 for(const [k,s] of SIDES){
   const sp=wpos('ua'+k);
@@ -343,7 +355,7 @@ function poseHand(H,curl,thumb){
 }
 
 // Beine: kräftiger Oberschenkel, schmales Knie, Wade, hohe Stiefel
-const legPts=[[0,.12],[.1,.1],[.155,.04],[.165,-.1],[.155,-.28],[.125,-.44],[.103,-.52],[.115,-.6],[.124,-.7],[.112,-.84],[.1,-.96],[0,-1.0]];
+const legPts=[[0,.12],[.1,.1],[.155,.04],[.165,-.1],[.155,-.28],[.125,-.44],[.103,-.52],[.115,-.6],[.124,-.7],[.112,-.84],[.1,-.96],[0,-1.0]].reverse();
 for(const [k,s] of SIDES){
   const hp=wpos('th'+k);
   const g=latheGeo(legPts,1,.95,40);g.translate(hp.x,hp.y,hp.z);
@@ -378,9 +390,9 @@ for(const [k,s] of SIDES){
   const iris=ball(.05,mat.iris);iris.scale.z=.35;iris.position.z=.085;piv.add(iris);
   const pup=ball(.031,mat.pupil);pup.scale.z=.35;pup.position.z=.094;piv.add(pup);
   const hl=ball(.014,mat.eye);hl.position.set(.03,.035,.1);eg.add(hl);
-  const lidU=new THREE.Mesh(new THREE.SphereGeometry(.097,32,12,0,Math.PI*2,0,Math.PI/2),mat.mask);eg.add(lidU);
-  const lidL=new THREE.Mesh(new THREE.SphereGeometry(.096,32,12,0,Math.PI*2,Math.PI/2,Math.PI/2),mat.mask);eg.add(lidL);
-  eyes.push({k,s,eg,piv,lidU,lidL});
+  const lidU=new THREE.Mesh(new THREE.SphereGeometry(.112,32,12,0,Math.PI*2,0,Math.PI/2),mat.mask);eg.add(lidU);
+  const lidL=new THREE.Mesh(new THREE.SphereGeometry(.111,32,12,0,Math.PI*2,Math.PI/2,Math.PI/2),mat.mask);eg.add(lidL);
+  eyes.push({k,s,eg,piv,lidU,lidL,hl});
 }
 // Augenbrauen
 const brows=[];
@@ -573,7 +585,7 @@ const CLIPS={
     {L:{f:1.15,r:.15,e:2.2,c:1,b:0,h:.2},R:{f:1.55,r:.1,e:.05,c:1,b:0,h:.45,u:.1},hp:[0,-.14,0],hr:[0,-.35,0],ch:[.15,-.2,0],FL:[-.05,0,.15,.3],FR:[.05,0,-.1,.3],rt:.1,hd:[.1,.2,0]},
     {L:{f:1.15,r:.15,e:2.2,c:1,b:0,h:.2},R:{f:1.15,r:.15,e:2.2,c:1,b:0,h:.2},hp:[0,-.1,0],up:.05,ch:[.12,0,0],FL:[-.05,0,.15,.3],FR:[.05,0,-.1,.3],rt:.1,hd:[.1,0,0]},
     {R:{f:1.15,r:.15,e:2.2,c:1,b:0,h:.2},L:{f:1.55,r:.1,e:.05,c:1,b:0,h:.45,u:.1},hp:[0,-.14,0],hr:[0,.3,0],ch:[.15,.2,0],FL:[-.05,0,.15,.3],FR:[.05,0,-.1,.3],rt:.1,hd:[.1,-.2,0]}]},
-  moonwalk:{T:1.2,stiff:1.6,circle:{R:.55,speed:-.35},keys:[
+  moonwalk:{T:1.2,stiff:1.6,circle:{R:.9,speed:-.4},keys:[
     {FL:[0,0,-.22,0,0],FR:[0,.09,.12,0,.9],L:{f:.5,r:.25,e:1.0,c:.7},R:{f:-.4,r:.25,e:1.0,c:.7},hp:[0,-.06,0],hd:[0,-.3,0],ch:[.05,0,0]},
     {FL:[0,.03,-.05,0,.45],FR:[0,.03,-.05,0,.45],L:{f:.1,r:.25,e:1.0,c:.7},R:{f:.1,r:.25,e:1.0,c:.7},hp:[0,-.03,0],hd:[0,-.3,0]},
     {FR:[0,0,-.22,0,0],FL:[0,.09,.12,0,.9],R:{f:.5,r:.25,e:1.0,c:.7},L:{f:-.4,r:.25,e:1.0,c:.7},hp:[0,-.06,0],hd:[0,-.3,0],ch:[.05,0,0]},
@@ -597,8 +609,8 @@ const CLIPS={
     {L:{r:Q,t:Q,e:Q,c:1,b:0},R:{r:.15,e:Q,c:1,b:0},hd:[0,-.6,0],hp:[0,-.04,0],ch:[0,-.3,0]},
     {L:{r:Q,t:-Q,e:Q,c:1,b:0},R:{r:Q,t:Q,e:Q,c:1,b:0},hd:[.3,0,0],hp:[0,-.1,0]}]},
   guitar:{T:.5,stiff:2.4,keys:[
-    {L:{r:1.0,h:.75,f:.4,e:1.1,c:.75,b:.5,t:-.6},R:{f:.5,h:.6,r:.3,e:1.6,c:.9,b:.2,t:-.4},hd:[.3,.3,0],hp:[0,-.14,0],ch:[.15,.3,0],FL:[-.08,0,.1],FR:[.1,0,-.05]},
-    {L:{r:1.0,h:.75,f:.4,e:1.1,c:.75,b:.5,t:-.6},R:{f:.2,h:.6,r:.45,e:1.4,c:.9,b:.2,t:-.4},hd:[-.1,.3,0],hp:[0,-.06,0],ch:[.05,.3,0],FL:[-.08,0,.1],FR:[.1,0,-.05]}]},
+    {L:{r:1.95,f:.35,h:.25,e:.12,c:.75,b:.6,t:.3},R:{f:.3,h:.7,r:.3,t:-.3,e:1.5,c:.55,b:.8,w:.35},hd:[.28,-.25,-.08],hp:[0,-.14,0],ch:[-.06,-.15,-.06],sp:[0,0,-.05],FL:[-.09,0,.08],FR:[.1,0,-.05]},
+    {L:{r:2.0,f:.35,h:.25,e:.1,c:.75,b:.6,t:.3},R:{f:.3,h:.7,r:.3,t:-.3,e:1.12,c:.55,b:.8,w:-.25},hd:[-.12,-.25,-.08],hp:[0,-.07,0],ch:[-.1,-.15,-.06],sp:[0,0,-.05],FL:[-.09,0,.08],FR:[.1,0,-.05]}]},
   fly:{T:2.0,wind:1,keys:[
     {R:{r:2.95,f:.2,e:.05,c:1,b:0},L:{r:.75,t:-2.0,e:1.9,c:1,b:0},up:.75,FL:[.03,.08,-.12,0,.7],FR:[-.03,.02,-.05,0,.7],ch:[-.12,0,0],hd:[-.25,0,0],hp:[0,0,0]},
     {R:{r:2.95,f:.25,e:.08,c:1,b:0},L:{r:.75,t:-2.0,e:1.9,c:1,b:0},up:.9,FL:[.03,.1,-.14,0,.75],FR:[-.03,.03,-.07,0,.7],ch:[-.12,0,0],hd:[-.28,0,0],hp:[0,0,0]}]},
@@ -827,6 +839,35 @@ function legIK(k,s,tg,yaw,toe){
 // POSE AUF DAS SKELETT LEGEN
 // =====================================================================
 let rotY=0,velY=0,drag=false,lastX=0,idleT=0;
+function armIK(k,s,T,pole){
+  const ua=B['ua'+k],fa=B['fa'+k],a=.5,b=.44;
+  const S=ua.getWorldPosition(new THREE.Vector3());
+  const d=T.clone().sub(S);let L=d.length();const dir=d.divideScalar(L||1);L=clamp(L,.1,a+b-.003);
+  const p=pole.clone().addScaledVector(dir,-pole.dot(dir)).normalize();
+  const cosA=clamp((a*a+L*L-b*b)/(2*a*L),-1,1),sinA=Math.sqrt(1-cosA*cosA);
+  const E=S.clone().addScaledVector(dir,a*cosA).addScaledVector(p,a*sinA),Tc=S.clone().addScaledVector(dir,L);
+  const u1=E.clone().sub(S).normalize(),u2=Tc.clone().sub(E).normalize(),np=p.clone().negate();
+  const q1=basisQ(u1,np,new THREE.Quaternion()),q2=basisQ(u2,np,new THREE.Quaternion());
+  B['cl'+k].getWorldQuaternion(_q3);ua.quaternion.copy(_q3.invert().multiply(q1));fa.quaternion.copy(q1.clone().invert().multiply(q2));
+}
+const _mw=new THREE.Vector3(),_hq=new THREE.Quaternion();
+function brushIK(t){
+  hero.updateMatrixWorld(true);
+  B.head.getWorldQuaternion(_hq);
+  const mouth=mouthG.localToWorld(_mw.set(Math.sin(t*Math.PI*2/.3)*.06,0,.05));
+  const L=.53*mini.scale.x/1.15;
+  const off=V3(1,-.3,.45).normalize().multiplyScalar(L).applyQuaternion(_hq);
+  const hand=mouth.clone().add(off);
+  const wrist=hand.clone().add(V3(.04,-.07,0).applyQuaternion(_hq));
+  const pole=V3(.7,-1,-.2).applyQuaternion(hero.getWorldQuaternion(new THREE.Quaternion())).normalize();
+  armIK('R',1,wrist,pole);hero.updateMatrixWorld(true);
+  // Bürste: Griff zeigt zum Mund, Borsten zu den Zähnen
+  const Y=mouth.clone().sub(mini.getWorldPosition(new THREE.Vector3())).normalize();
+  const Z=V3(0,0,-1).applyQuaternion(_hq);
+  const m=new THREE.Matrix4();const Zp=Z.addScaledVector(Y,-Z.dot(Y)).normalize();m.makeBasis(new THREE.Vector3().crossVectors(Y,Zp),Y,Zp);
+  const wq=new THREE.Quaternion().setFromRotationMatrix(m);
+  mini.parent.getWorldQuaternion(_q3);mini.quaternion.copy(_q3.invert().multiply(wq));
+}
 const lookTmp=new THREE.Vector3();let lookY=0,lookX=0;
 function applyRig(){
   const g=n=>cur[IX[n]];
@@ -872,7 +913,7 @@ function step(dt){
   if(!talk.on&&gestW<.01)gest=null;
   proceduralLayer(t,tgt);
   if(clip.spin)tgt[IX.rt0]=clipT*clip.spin;
-  if(clip.circle){const a=clipT*clip.circle.speed,R=clip.circle.R;tgt[IX.mvx0]=Math.sin(a)*R;tgt[IX.mvz0]=(Math.cos(a)-1)*R;tgt[IX.rt0]=a-Math.PI/2;}
+  if(clip.circle){const a=clipT*clip.circle.speed,R=clip.circle.R;tgt[IX.mvx0]=Math.sin(a)*R;tgt[IX.mvz0]=(Math.cos(a)-1)*R;tgt[IX.rt0]=a+Math.sign(clip.circle.speed)*-Math.PI/2;}
   // Federn (Unterschritte für Stabilität)
   const stiff=clip.stiff||1,sub=Math.max(1,Math.ceil(dt/(1/480)));const h=dt/sub;
   for(let n=0;n<sub;n++)for(let s=0;s<NS;s++){
@@ -885,12 +926,12 @@ function step(dt){
   lookTmp.copy(camera.position);B.neck.parent.worldToLocal(lookTmp);lookTmp.sub(B.neck.position);
   let ly=Math.atan2(lookTmp.x,lookTmp.z),lx=-Math.atan2(lookTmp.y-.6,Math.hypot(lookTmp.x,lookTmp.z));
   if(glance){ly=glance.y;lx=glance.x;}
-  const lookW=clip.idle||clip.talk?1:.35;
+  const lookW=clip.idle||clip.talk?1:clip.brush?.15:.35;
   ly=clamp(ly,-1.1,1.1)*lookW;lx=clamp(lx,-.35,.35)*lookW;
   lookY+=(ly*.75-lookY)*Math.min(1,dt*3.2);lookX+=(lx*.6-lookX)*Math.min(1,dt*3.2);
   // Skelett
   rig.rotation.y=cur[IX.rt0];hero.rotation.y=rotY;
-  applyRig();hero.updateMatrixWorld(true);solveLegs();hero.updateMatrixWorld(true);
+  applyRig();hero.updateMatrixWorld(true);solveLegs();hero.updateMatrixWorld(true);if(clip.brush)brushIK(clipT);
   // Gesicht
   updateFace(dt,t,ly,lx);
   // Borsten wackeln nach
@@ -937,7 +978,7 @@ function updateFace(dt,t,ly,lx){
     e.piv.rotation.set(ex,ey,0);
     const wink=e.k==='R'?face.wink:0;
     const lid=clamp(Math.max(face.lid+ex*.5,bl,wink),-.25,1);
-    e.lidU.rotation.x=lerp(-1.35,1.6,lid);
+    e.lidU.rotation.x=lerp(-1.35,1.62,lid);e.hl.visible=lid<.55;e.piv.visible=lid<.97;
     e.lidL.rotation.x=lerp(1.35,.2,clamp(face.lidL+wink*.4,0,1));}
   for(const b of brows){b.g.position.y=.3+face.brow*.045+browKick*.02;b.g.rotation.z=-b.s*face.tilt*.32;}
   cheeks.forEach(c=>{c.position.y=-.14+face.smile*.012+Math.max(0,face.lidL)*.01;});
