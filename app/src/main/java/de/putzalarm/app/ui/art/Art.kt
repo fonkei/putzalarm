@@ -59,6 +59,23 @@ fun Mascot(
     still: Boolean = false,
 ) {
     val look = outfit ?: LocalOutfit.current
+    // Bewegt: der neue 3D-Bürsti. Ruhige Vorschaubilder (z. B. im Schrank) bleiben fertige Bilder.
+    if (!still && Buersti3D.enabled) {
+        Mascot3D(modifier, pose, look, onTap) { m -> MascotSprites(m, pose, null, look, false) }
+    } else {
+        MascotSprites(modifier, pose, onTap, look, still)
+    }
+}
+
+/** Die alten, fertig gerenderten Bilder (auch Ersatz, solange die 3D-Szene lädt oder falls das Gerät sie nicht schafft). */
+@Composable
+private fun MascotSprites(
+    modifier: Modifier,
+    pose: HeroPose?,
+    onTap: (() -> Unit)?,
+    look: Outfit,
+    still: Boolean,
+) {
     val moves = look.moves.ifEmpty { HeroPose.Basic }
     var current by remember { mutableStateOf(pose ?: HeroPose.WAVE) }
     var frame by remember { mutableIntStateOf(if (still && pose != HeroPose.FLEX) 1 else 0) }
