@@ -184,12 +184,13 @@ THREE.ColorManagement.legacyMode=false;
 const TEST=location.search.includes('test');
 // In der App (assets/buersti/index.html) setzt die Seite window.PUTZ_APP: keine Knöpfe, durchsichtig, sparsam
 const APP=!!window.PUTZ_APP;
-const Android=window.Android||{ready(){},fail(){},slow(){}};
+const Android=window.Android||{ready(){},fail(){},slow(){},log(){}};
+const alog=m=>{try{Android.log&&Android.log(String(m));}catch(e){}};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let renderer;
 try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:TEST});}
 catch(e){Android.fail();document.getElementById('loading').textContent='3D geht auf diesem Gerät nicht.';return;}
-renderer.setPixelRatio(Math.min(devicePixelRatio,APP?1.5:2));
+let pxr=Math.min(devicePixelRatio,APP?1.5:2);renderer.setPixelRatio(pxr);
 renderer.shadowMap.enabled=!APP;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 stage.prepend(renderer.domElement);
@@ -290,7 +291,7 @@ for(const [k,s] of SIDES){
 }
 rig.updateMatrixWorld(true);
 const skeleton=new THREE.Skeleton(bones);
-const BI=Object.fromEntries(bones.map((b,i)=>[b.name,i]));
+const BI={};bones.forEach((b,i)=>{BI[b.name]=i;});
 const wpos=n=>B[n].getWorldPosition(new THREE.Vector3());
 function skin(geo,fn,material){
   const p=geo.attributes.position,n=p.count,si=new Uint16Array(n*4),sw=new Float32Array(n*4),v=new THREE.Vector3();
@@ -1006,7 +1007,10 @@ function frame(){
     step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);
     if(!readySent){readySent=true;Android.ready();}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
-    if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;fpsN=-1e9;if(fps<17)Android.slow();}
+    // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
+    if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);
+      if(fps<17&&pxr>.8){pxr=pxr>1.1?1:.8;renderer.setPixelRatio(pxr);resize();fpsT=1.5;fpsN=0;fpsSum=0;}
+      else{fpsN=-1e9;if(fps<14)Android.slow();}}
     return;}
   const dt=Math.min(clock.getDelta(),.05);
   if(!drag){rotY+=velY;velY*=.93;idleT+=dt;if(idleT>6&&!reduce&&camMode===camFar)rotY+=Math.sin(simT*.15)*dt*.12;}

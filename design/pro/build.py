@@ -15,7 +15,7 @@ app='''<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}#stage{position:absolute;inset:0}canvas{display:block;width:100%;height:100%}#loading{display:none}</style>
 </head><body><div id="stage"><div id="loading"></div></div>
-<script>window.PUTZ_APP=true;</script>
+<script>window.PUTZ_APP=true;window.onerror=function(m,u,l,c){try{Android.log("JS-Fehler: "+m+" @"+l+":"+c);}catch(e){}};</script>
 <script src="three.min.js"></script>
 <script>'''+core+'''</script>
 </body></html>
