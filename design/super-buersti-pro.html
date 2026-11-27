@@ -1115,7 +1115,7 @@ function updateFace(dt,t,ly,lx){
   for(const b of brows){b.g.position.y=.3+face.brow*.045+browKick*.02;b.g.rotation.z=-b.s*face.tilt*.32;}
   cheeks.forEach(c=>{c.position.y=-.14+face.smile*.012+Math.max(0,face.lidL)*.01;});
 }
-let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;let dead=false,tries=0,chkT=0;let lastFps=0,lastPx=1;
+let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;let dead=false,tries=0,chkT=0;let lastFps=0,lastPx=1;let chkN=0,logT=0,logN=0;
 renderer.domElement.addEventListener('webglcontextlost',e=>{dead=true;alog('WebGL verloren');Android.fail();});
 function drawnPixels(){const gl=renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
   try{const px=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px);let n=0;
@@ -1124,7 +1124,8 @@ renderer.debug.checkShaderErrors=true;
 function frame(){
   if(APP){requestAnimationFrame(frame);const raw=clock.getDelta();acc+=raw;
     // höchstens 30 Bilder pro Sekunde, das schont das Tablet
-    if(acc<1/31)return;const dt=Math.min(acc,.07);acc=0;
+    // nicht mehr als 30 Bilder pro Sekunde; ist das Gerät langsamer, jedes Bild zeichnen statt jedes zweite
+    if(acc<.024)return;const dt=Math.min(acc,.07);acc=0;
     if(dead)return;
     try{step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);}
     catch(e){dead=true;alog('Fehler beim Zeichnen: '+e.message);Android.fail();return;}
@@ -1135,7 +1136,9 @@ function frame(){
       else if(tries>=20){dead=true;alog('nichts gezeichnet ('+n+')');Android.fail();}
       return;}
     // alle 10 s nachsehen, ob er noch sichtbar gezeichnet wird; sonst zurück zu den Bildern
-    if((chkT+=dt)>10){chkT=0;if(renderer.domElement.getBoundingClientRect().height<10)resize();const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
+    // zweimal nachkontrollieren (nach 10 und 30 s), öfter nicht: das Auslesen lässt das Bild kurz stocken
+    if(chkN<2&&(chkT+=dt)>(chkN?20:10)){chkT=0;chkN++;if(renderer.domElement.getBoundingClientRect().height<10)resize();const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
+    logN++;if((logT+=dt)>=20){alog('fps '+(logN/logT).toFixed(1)+' (20 s)');logT=0;logN=0;}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
     // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
     if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);

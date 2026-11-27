@@ -12,13 +12,14 @@ import org.json.JSONObject
 
 /** Posen von Super Bürsti, je mit ihren Einzelbildern (aus tools/render_sprites.js). */
 enum class HeroPose(val key: String, val frames: Int, val frameMs: Int) {
-    FLEX("flex", 2, 420), WAVE("wave", 4, 120), JUBEL("jubel", 4, 110),
-    DANCE("dance", 4, 190), BRUSH("brush", 4, 110), BOX("box", 4, 200),
-    MOONWALK("moonwalk", 4, 300), KARATE("karate", 4, 330), JACK("jack", 4, 220), SPIN("spin", 4, 160),
-    ROBOT("robot", 4, 280), GUITAR("guitar", 4, 170), FLY("fly", 4, 420),
+    // Tempo wie die Bewegungen des 3D-Bürsti (eine Runde = Bilder x frameMs), damit der Wechsel nicht auffällt
+    FLEX("flex", 2, 800), WAVE("wave", 4, 250), JUBEL("jubel", 4, 250),
+    DANCE("dance", 4, 300), BRUSH("brush", 4, 75), BOX("box", 4, 275),
+    MOONWALK("moonwalk", 4, 300), KARATE("karate", 4, 650), JACK("jack", 4, 225), SPIN("spin", 4, 300),
+    ROBOT("robot", 4, 600), GUITAR("guitar", 4, 125), FLY("fly", 4, 500),
     // Neu im November 2026 (nur hinten anhängen)
-    FLOSS("floss", 4, 200), DAB("dab", 4, 420), CHICKEN("chicken", 4, 170), HULA("hula", 4, 240),
-    STOMP("stomp", 4, 300), RUN("run", 4, 150);
+    FLOSS("floss", 4, 200), DAB("dab", 4, 550), CHICKEN("chicken", 4, 150), HULA("hula", 4, 225),
+    STOMP("stomp", 4, 325), RUN("run", 4, 138);
 
     companion object {
         /** Bewegungen, die Super Bürsti von Anfang an kann; die übrigen schaltet man mit Sternen frei. */
