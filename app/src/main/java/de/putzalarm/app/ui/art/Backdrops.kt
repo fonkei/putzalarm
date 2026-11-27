@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import de.putzalarm.app.data.Backdrop
 import de.putzalarm.app.data.Effect
 import de.putzalarm.app.ui.theme.M
@@ -35,9 +36,11 @@ import kotlin.random.Random
 @Composable
 fun BackdropBox(backdrop: Backdrop, modifier: Modifier = Modifier.fillMaxSize(), content: @Composable BoxScope.() -> Unit = {}) {
     val t = rememberInfiniteTransition(label = "hintergrund")
-    val time by t.animateFloat(0f, 1f, infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
+    val time = t.animateFloat(0f, 1f, infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
     Box(modifier) {
-        Canvas(Modifier.fillMaxSize()) { drawBackdrop(backdrop, time) }
+        // Die Zeit wird nur beim Zeichnen gelesen, und der Hintergrund hat seine eigene Ebene: so wird pro Bild nur er
+        // neu gemalt, nicht der ganze Bildschirm. Sonst verschwindet der 3D-Bürsti (WebView) darüber auf manchen Tablets.
+        Canvas(Modifier.fillMaxSize().graphicsLayer()) { drawBackdrop(backdrop, time.value) }
         content()
     }
 }
