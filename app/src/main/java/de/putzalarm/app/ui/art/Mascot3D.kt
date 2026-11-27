@@ -100,6 +100,8 @@ fun Mascot3D(
                 }
             }
             Log.i(TAG, "WebView ${WebView.getCurrentWebViewPackage()?.versionName}")
+            // Testversionen: vom PC aus per chrome://inspect hineinschauen
+            if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
             addJavascriptInterface(object {
                 @JavascriptInterface fun ready() { Log.i(TAG, "bereit"); post { ready = true } }
                 @JavascriptInterface fun fail() { Log.w(TAG, "kein WebGL"); post { Buersti3D.enabled = false } }
