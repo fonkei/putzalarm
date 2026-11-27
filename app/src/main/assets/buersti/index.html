@@ -962,7 +962,7 @@ function frame(){
       else if(tries>=20){dead=true;alog('nichts gezeichnet ('+n+')');Android.fail();}
       return;}
     // alle 10 s nachsehen, ob er noch sichtbar gezeichnet wird; sonst zurück zu den Bildern
-    if((chkT+=dt)>10){chkT=0;const n=drawnPixels();if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
+    if((chkT+=dt)>10){chkT=0;const n=drawnPixels();alog('Kontrolle: '+n+' Punkte sichtbar');if(n<50){dead=true;alog('nicht mehr sichtbar ('+n+'), '+renderer.domElement.width+'x'+renderer.domElement.height);Android.fail();return;}}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
     // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
     if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);
