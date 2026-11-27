@@ -37,6 +37,7 @@ import de.putzalarm.app.data.BackdropReward
 import de.putzalarm.app.data.EffectReward
 import de.putzalarm.app.data.GearReward
 import de.putzalarm.app.data.ChestGear
+import de.putzalarm.app.data.chestGear
 import de.putzalarm.app.data.Giants
 import de.putzalarm.app.data.SessionOutcome
 import de.putzalarm.app.data.wearing
@@ -171,7 +172,7 @@ fun App(store: ProfileStore, voice: Voice, sfx: Sfx) {
                                 is GearReward -> dressed = dressed.wearing(rw.gear)
                                 else -> Unit
                             }
-                            outcome.chest?.let { ChestGear.getOrNull(it) }?.let { dressed = dressed.wearing(it) }
+                            outcome.chest?.let { now.chestGear.getOrNull(it) }?.let { dressed = dressed.wearing(it) }
                             if (dressed != now) store.upsert(dressed)
                         }
                         screen = Screen.Result(c.id, r, outcome)

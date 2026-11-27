@@ -136,7 +136,10 @@ fun backdropStars(b: Backdrop) = Rewards.filterIsInstance<BackdropReward>().firs
 fun effectStars(e: Effect) = Rewards.filterIsInstance<EffectReward>().firstOrNull { it.effect == e }?.stars ?: 0
 /** Ausrüstung: Kisten-Teile sind mit der passenden Schatzkiste frei, die übrigen ab ihren Sternen. */
 fun gearStars(g: Gear) = Rewards.filterIsInstance<GearReward>().firstOrNull { it.gear == g }?.stars ?: 0
-fun Child.hasGear(g: Gear): Boolean = ChestGear.indexOf(g).let { i -> if (i >= 0) chests > i else stars >= gearStars(g) }
+/** Die Kisten-Schätze in der Reihenfolge dieses Kindes. */
+val Child.chestGear: List<Gear>
+    get() = chestOrder.mapNotNull { Gear.of(it) }.takeIf { it.toSet() == ChestGear.toSet() && it.size == ChestGear.size } ?: ChestGear
+fun Child.hasGear(g: Gear): Boolean = chestGear.indexOf(g).let { i -> if (i >= 0) chests > i else stars >= gearStars(g) }
 /** Zieht [g] an (ersetzt den Hut bzw. die Brille). */
 fun Child.wearing(g: Gear): Child = if (g.slot == GearSlot.HAT) copy(hat = g.key) else copy(glasses = g.key)
 val Child.hasJokes get() = stars >= (Rewards.filterIsInstance<JokesReward>().firstOrNull()?.stars ?: 0)
