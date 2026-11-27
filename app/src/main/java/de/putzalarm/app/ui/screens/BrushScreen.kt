@@ -273,7 +273,8 @@ private fun GameLayer(game: BrushGame, track: Tracking, cameraOk: Boolean, meter
             // Alte Bekannte aus dem Album: seltene tragen ihre Krone auch beim Wegfliegen
             if (g.album?.rare == true) {
                 val sz = g.size * g.z * grow
-                drawCrown(Offset(g.x, g.y - sz * 0.62f), sz * 0.42f)
+                // Die Krone dreht sich mit dem Monster mit
+                rotate(g.rot, Offset(g.x, g.y)) { drawCrown(Offset(g.x, g.y - sz * 0.62f), sz * 0.42f) }
             }
             if (g.scream != null && g.age in 0.05f..1.1f) {
                 val layout = measurer.measure(g.scream, bubbleStyle)
