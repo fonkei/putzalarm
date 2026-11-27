@@ -488,15 +488,21 @@ function clothStep(dt,t){
       const p=cloth.p[i],q=cloth.q[i];_a.subVectors(p,q).multiplyScalar(.985);q.copy(p);
       const fl=1-Math.floor(i/CW)/(CH-1)*.3;
       p.add(_a).add(_b.set(wv.x*fl,-24+wv.y,wv.z*fl).multiplyScalar(h*h));}
-    for(let it=0;it<5;it++){
-      for(const [a,b,r,st] of cloth.links){const pa=cloth.p[a],pb=cloth.p[b];_a.subVectors(pb,pa);const d=_a.length();if(d<1e-6)continue;const k=(d-r)/d*.5*st;
-        if(a<CW){pb.addScaledVector(_a,-k*2);}else if(b<CW){pa.addScaledVector(_a,k*2);}else{pa.addScaledVector(_a,k);pb.addScaledVector(_a,-k);}}
-      for(let i=CW;i<cloth.p.length;i++){const p=cloth.p[i];
+    // in der App etwas weniger Rechnen (4 statt 5 Runden, Kollision mit Körper und Beinen jede zweite Runde)
+    const IT=LO?4:5;
+    for(let it=0;it<IT;it++){
+      // schlichte Zählschleife ohne Zerlegen der Einträge: auf alten Tablets deutlich schneller
+      const LK=cloth.links,P=cloth.p;
+      for(let l=0;l<LK.length;l++){const L=LK[l],a=L[0],b=L[1],pa=P[a],pb=P[b];
+        const dx=pb.x-pa.x,dy=pb.y-pa.y,dz=pb.z-pa.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<1e-6)continue;const k=(d-L[2])/d*.5*L[3];
+        if(a<CW){pb.x-=dx*k*2;pb.y-=dy*k*2;pb.z-=dz*k*2;}else if(b<CW){pa.x+=dx*k*2;pa.y+=dy*k*2;pa.z+=dz*k*2;}
+        else{pa.x+=dx*k;pa.y+=dy*k;pa.z+=dz*k;pb.x-=dx*k;pb.y-=dy*k;pb.z-=dz*k;}}
+      if(!LO||it%2===1)for(let i=CW;i<cloth.p.length;i++){const p=cloth.p[i];
         // Rücken (ellipsenförmig) im Hüft-Raum
         _c.copy(p).applyMatrix4(_mi);_c.x/=1.42;
         const yy=clamp(_c.y,-.15,1.25),dx=_c.x,dz=_c.z,dd=Math.hypot(dx,dz),R=.34;
         if(_c.y>-.35&&_c.y<1.45&&dd<R){const f=R/(dd||1e-4);_c.x=dx*f*1.42;_c.z=dz*f;_c.applyMatrix4(B.hips.matrixWorld);p.copy(_c);}
-        for(const [A,K,F] of legs){pushCapsule(p,A,K,.2);pushCapsule(p,K,F,.17);}
+        for(let g=0;g<legs.length;g++){const G=legs[g];pushCapsule(p,G[0],G[1],.2);pushCapsule(p,G[1],G[2],.17);}
         if(p.y<.02)p.y=.02;}
     }
   }
