@@ -943,13 +943,23 @@ function updateFace(dt,t,ly,lx){
   for(const b of brows){b.g.position.y=.3+face.brow*.045+browKick*.02;b.g.rotation.z=-b.s*face.tilt*.32;}
   cheeks.forEach(c=>{c.position.y=-.14+face.smile*.012+Math.max(0,face.lidL)*.01;});
 }
-let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;
+let acc=0,fpsT=0,fpsN=0,fpsSum=0,readySent=false;let dead=false,tries=0;
+function drawnPixels(){const gl=renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
+  try{const px=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px);let n=0;
+    for(let i=3;i<px.length;i+=64)if(px[i]>40)n++;return n;}catch(e){alog('readPixels: '+e.message);return 0;}}
+renderer.debug.checkShaderErrors=true;
 function frame(){
   if(APP){requestAnimationFrame(frame);const raw=clock.getDelta();acc+=raw;
     // höchstens 30 Bilder pro Sekunde, das schont das Tablet
     if(acc<1/31)return;const dt=Math.min(acc,.07);acc=0;
-    step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);
-    if(!readySent){readySent=true;Android.ready();}
+    if(dead)return;
+    try{step(dt);camera.position.copy(camFar.pos);camera.lookAt(camFar.look);renderer.render(scene,camera);}
+    catch(e){dead=true;alog('Fehler beim Zeichnen: '+e.message);Android.fail();return;}
+    // erst melden, wenn wirklich etwas Sichtbares gezeichnet wurde; sonst bleiben die Bilder
+    if(!readySent){const n=drawnPixels();tries++;
+      if(n>200){readySent=true;alog('bereit, '+n+' Punkte sichtbar');Android.ready();}
+      else if(tries>=20){dead=true;alog('nichts gezeichnet ('+n+')');Android.fail();}
+      return;}
     fpsT+=dt;if(fpsT>1.5&&fpsT<6.5){fpsN++;fpsSum+=dt;}
     // zu langsam? erst die Auflösung senken, erst wenn das nicht reicht aufgeben (dann wieder die Bilder)
     if(fpsT>=6.5&&fpsN>0){const fps=fpsN/fpsSum;alog('fps '+fps.toFixed(1)+' px '+pxr);
