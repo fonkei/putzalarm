@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -35,12 +38,20 @@ import kotlin.random.Random
  */
 @Composable
 fun BackdropBox(backdrop: Backdrop, modifier: Modifier = Modifier.fillMaxSize(), content: @Composable BoxScope.() -> Unit = {}) {
-    val t = rememberInfiniteTransition(label = "hintergrund")
-    val time = t.animateFloat(0f, 1f, infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart), label = "zeit")
+    // Die Hintergründe bewegen sich langsam: 20 neue Bilder pro Sekunde reichen. So bleibt dem Tablet mehr Kraft
+    // für den 3D-Bürsti davor. Die gelben Punkte bewegen sich gar nicht und werden nur einmal gemalt.
+    val time = remember { mutableFloatStateOf(0f) }
+    if (backdrop != Backdrop.DOTS) LaunchedEffect(Unit) {
+        val start = System.nanoTime()
+        while (true) {
+            time.floatValue = ((System.nanoTime() - start) / 1e6 % 12000.0 / 12000.0).toFloat()
+            delay(50)
+        }
+    }
     Box(modifier) {
         // Die Zeit wird nur beim Zeichnen gelesen, und der Hintergrund hat seine eigene Ebene: so wird pro Bild nur er
-        // neu gemalt, nicht der ganze Bildschirm. Sonst verschwindet der 3D-Bürsti (WebView) darüber auf manchen Tablets.
-        Canvas(Modifier.fillMaxSize().graphicsLayer()) { drawBackdrop(backdrop, time.value) }
+        // neu gemalt, nicht der ganze Bildschirm.
+        Canvas(Modifier.fillMaxSize().graphicsLayer()) { drawBackdrop(backdrop, time.floatValue) }
         content()
     }
 }
