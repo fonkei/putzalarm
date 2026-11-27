@@ -47,15 +47,30 @@ object BuerstiBus {
         return { listeners -= l }
     }
 
+    /** Spricht Bürsti gerade? Die fertigen Bilder bewegen dann den Mund. */
+    var talking by mutableStateOf(false)
+        private set
+
+    /** Der Satz, der gerade läuft: so kann ein 3D-Bürsti, der erst mittendrin fertig geladen ist, noch mitsprechen. */
+    var current: String? = null
+        private set
+
     private fun send(js: String) = main.post { listeners.toList().forEach { it(js) } }
 
     /** Ein Stück Text beginnt; [durMs] ist die Länge einer Aufnahme (0 = Gerätestimme, die Wortgrenzen meldet). */
-    fun segment(text: String, durMs: Int = 0) = send("B.say(${JSONObject.quote(text)},$durMs)")
+    fun segment(text: String, durMs: Int = 0) {
+        val js = "B.say(${JSONObject.quote(text)},$durMs)"
+        main.post { talking = true; current = js }
+        send(js)
+    }
 
     /** Die Gerätestimme beginnt das Wort an Stelle [start] im zuletzt gemeldeten Text. */
     fun range(start: Int) = send("B.range($start)")
 
-    fun end() = send("B.end()")
+    fun end() {
+        main.post { talking = false; current = null }
+        send("B.end()")
+    }
 }
 
 private const val TAG = "Buersti3D"
@@ -115,6 +130,11 @@ fun Mascot3D(
     }
     LaunchedEffect(ready, look, pose) {
         if (ready) web.evaluateJavascript("B.set(${look.toJson(pose)})", null)
+    }
+    // Läuft schon ein Satz (z. B. die Begrüßung, während die Szene noch lud), steigt der Mund gleich ein;
+    // die nächsten Wortgrenzen der Stimme bringen ihn auf die richtige Stelle
+    LaunchedEffect(ready) {
+        if (ready) BuerstiBus.current?.let { web.evaluateJavascript(it, null) }
     }
     DisposableEffect(web) {
         val off = BuerstiBus.listen { js -> if (ready) web.evaluateJavascript(js, null) }
